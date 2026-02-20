@@ -1,0 +1,27 @@
+# Copyright (c) 2025-2026 BlackRoad OS, Inc. All Rights Reserved.
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+    paths: ['docker/**']
+  pull_request:
+    branches: [main]
+    paths: ['docker/**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [core, web, agents, operator]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: docker/${{ matrix.service }}
+          push: false
+          tags: blackroad/${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

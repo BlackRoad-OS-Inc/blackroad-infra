@@ -1,0 +1,29 @@
+# Copyright (c) 2025-2026 BlackRoad OS, Inc. All Rights Reserved.
+name: Brand Compliance Check
+description: Verify CSS and UI files use approved BlackRoad brand colors
+
+inputs:
+  scan-path:
+    description: Directory to scan
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    - name: Check for forbidden colors
+      shell: bash
+      run: |
+        echo "Checking brand compliance in ${{ inputs.scan-path }}..."
+        FORBIDDEN=("#FF9D00" "#FF6B00" "#FF0066" "#FF006B" "#D600AA" "#7700FF" "#0066FF")
+        FOUND=0
+        for color in "${FORBIDDEN[@]}"; do
+          if grep -ri "$color" "${{ inputs.scan-path }}" --include="*.css" --include="*.tsx" --include="*.ts" 2>/dev/null; then
+            echo "FORBIDDEN COLOR FOUND: $color"
+            FOUND=1
+          fi
+        done
+        if [ $FOUND -eq 1 ]; then
+          echo "Brand compliance check FAILED"
+          exit 1
+        fi
+        echo "Brand compliance check PASSED"

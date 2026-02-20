@@ -1,0 +1,25 @@
+# Copyright (c) 2025-2026 BlackRoad OS, Inc. All Rights Reserved.
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['terraform/**']
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [staging, production]
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7"
+      - run: terraform init -backend=false
+      - run: terraform validate
+      - run: terraform fmt -check

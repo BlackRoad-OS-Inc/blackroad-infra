@@ -1,0 +1,29 @@
+# Copyright (c) 2025-2026 BlackRoad OS, Inc. All Rights Reserved.
+name: Docker CI
+
+on:
+  workflow_call:
+    inputs:
+      context:
+        type: string
+        required: true
+      image-name:
+        type: string
+        required: true
+    secrets:
+      registry-token:
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          push: false
+          tags: ${{ inputs.image-name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,30 @@
+# Copyright (c) 2025-2026 BlackRoad OS, Inc. All Rights Reserved.
+name: Deploy to Cloudflare Pages
+description: Build and deploy a project to Cloudflare Pages
+
+inputs:
+  project-name:
+    description: Cloudflare Pages project name
+    required: true
+  directory:
+    description: Build output directory to deploy
+    required: true
+  api-token:
+    description: Cloudflare API token
+    required: true
+  account-id:
+    description: Cloudflare account ID
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Deploy to Cloudflare Pages
+      shell: bash
+      run: |
+        npx wrangler pages deploy "${{ inputs.directory }}" \
+          --project-name="${{ inputs.project-name }}" \
+          --branch="${GITHUB_REF_NAME}"
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.account-id }}

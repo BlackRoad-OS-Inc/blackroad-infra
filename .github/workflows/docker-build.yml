@@ -1,5 +1,5 @@
 # Copyright (c) 2025-2026 BlackRoad OS, Inc. All Rights Reserved.
-name: Docker Build
+name: Docker Lint
 
 on:
   push:
@@ -10,18 +10,20 @@ on:
     paths: ['docker/**']
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         service: [core, web, agents, operator]
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - uses: hadolint/hadolint-action@v3.1.0
         with:
-          context: docker/${{ matrix.service }}
-          push: false
-          tags: blackroad/${{ matrix.service }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          dockerfile: docker/${{ matrix.service }}/Dockerfile
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose
+        run: docker compose -f docker/docker-compose.yml config --quiet

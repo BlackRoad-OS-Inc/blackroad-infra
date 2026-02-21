@@ -49,11 +49,12 @@ fleet:
       cooling: "Active fan"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.89"
-      ip_tailscale: "100.72.180.98"
+      ip_wireguard: "10.8.0.3"
+      ip_tailscale: null  # DEPRECATED 2026-02-21 (was 100.72.180.98)
       mac: "88:a2:9e:3b:eb:72"
       os: "Debian 13 (Trixie)"  # NOT Bookworm!
       kernel: "6.12.62+rpt-rpi-2712"
-      ssh_user: "blackroad"
+      ssh_user: "cecilia"  # CORRECTED: cecilia has NOPASSWD sudo, not blackroad
       roles:
         - primary_ai_host
         - orchestration
@@ -77,7 +78,8 @@ fleet:
       cooling: "Pironman dual-fan tower"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.38"
-      ip_tailscale: "100.66.235.47"  # CORRECTED (was swapped with Lucidia)
+      ip_wireguard: "10.8.0.5"  # PENDING: config not deployed (no SSH key for sudo user)
+      ip_tailscale: null  # DEPRECATED 2026-02-21 (was 100.66.235.47)
       mac: "2c:cf:67:cf:fa:17"
       os: "Debian 12 (Bookworm)"
       kernel: "6.12.62+rpt-rpi-2712"
@@ -108,12 +110,16 @@ fleet:
       cooling: "ElectroCookie tower cooler"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.81"
-      ip_tailscale: "100.83.149.86"  # CORRECTED (was swapped with Octavia)
-      mac: null  # ARP incomplete — node is DOWN
-      os: "Debian 12 (Bookworm)"  # last known
-      kernel: "6.12.62+rpt-rpi-2712"  # last known
-      ssh_user: "blackroad"
-      status_override: "DOWN — unreachable via ping, ARP incomplete"
+      ip_wireguard: "10.8.0.4"
+      ip_tailscale: null  # DEPRECATED 2026-02-21 (was 100.83.149.86)
+      mac: null  # Previously ARP incomplete, now alive
+      os: "Debian 13 (Trixie)"  # CORRECTED: verified via SSH 2026-02-21
+      kernel: "6.12.62+rpt-rpi-2712"
+      ssh_user: "lucidia"  # CORRECTED: lucidia has NOPASSWD sudo
+      hostname_bug: "hostname='octavia', mDNS='octavia-2' — identity swapped with Octavia"
+      case: "Pironman 5 (SunFounder)"  # CORRECTED: has Pironman, not ElectroCookie
+      overclocked: "2.6GHz (over_voltage=6)"
+      status_override: null  # Node is UP as of 2026-02-21
       roles:
         - nats_bus
         - llm_inference
@@ -137,7 +143,8 @@ fleet:
       cooling: "Pironman dual-fan tower"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.82"
-      ip_tailscale: "100.109.14.17"
+      ip_wireguard: "10.8.0.7"
+      ip_tailscale: null  # DEPRECATED 2026-02-21 (was 100.109.14.17)
       mac: "88:a2:9e:0d:42:07"
       os: "Debian 12 (Bookworm)"
       kernel: "6.12.62+rpt-rpi-2712"
@@ -200,7 +207,8 @@ fleet:
       cooling: "Passive (built-in)"
       psu: "5V/3A USB-C (15W)"
       ip_local: "192.168.4.49"
-      ip_tailscale: "100.77.210.18"
+      ip_wireguard: "10.8.0.6"
+      ip_tailscale: null  # DEPRECATED 2026-02-21 (was 100.77.210.18)
       mac: "d8:3a:dd:ff:98:87"
       os: "Raspbian 11 (Bullseye)"  # NOT Bookworm — needs upgrade
       kernel: "6.1.21-v8+"
@@ -240,7 +248,8 @@ fleet:
       ram: "~765MB"
       storage: "25GB+"
       ip_local: "159.65.43.12"
-      ip_tailscale: "100.108.132.8"
+      ip_wireguard: "10.8.0.8"
+      ip_tailscale: null  # DEPRECATED 2026-02-21 (was 100.108.132.8)
       os: "Debian/Ubuntu based"
       ssh_user: "blackroad"
       ssh_alias: "gematria"
@@ -264,7 +273,8 @@ fleet:
       ram: "765MB (408MB used)"
       storage: "25GB SSD (57% used, 15G/25G)"
       ip_local: "174.138.44.45"
-      ip_tailscale: "100.94.33.37"
+      ip_wireguard: "10.8.0.1"  # WireGuard HUB
+      ip_tailscale: null  # DEPRECATED 2026-02-21 (was 100.94.33.37)
       os: "CentOS Stream 9"
       kernel: "5.14.0-651.el9.x86_64"
       ssh_user: "blackroad"
@@ -491,9 +501,24 @@ fleet:
       switch: "TP-Link TL-SG105 (5-port gigabit)"
       wifi: "TP-Link AX3000 PCIe WiFi 6"
 
+    wireguard:
+      subnet: "10.8.0.0/24"
+      hub: "shellfish (174.138.44.45:51820)"
+      hub_ip: "10.8.0.1"
+      topology: "hub-and-spoke"
+      deployed: "2026-02-21"
+      nodes: 8
+      active: 5  # cecilia, lucidia, alice, aria, infinity
+      pending: 2  # alexandria (needs sudo), octavia (needs SSH key)
+      config_path: "/etc/wireguard/wg0.conf"
+      autostart: "systemctl enable wg-quick@wg0"
+
     tailscale:
+      status: "DEPRECATED — disabled fleet-wide 2026-02-21"
+      reason: "tailscaled 190% CPU bug on Pi 4 (recurring)"
+      replacement: "WireGuard (in-kernel, near-zero CPU)"
       tailnet: "blackroad"
-      nodes: 7
+      nodes: 0  # all disabled
 
     tunnels:
       provider: "Cloudflare"
@@ -522,7 +547,7 @@ fleet:
     firewall:
       tool: "ufw"
       default: "deny"
-      allowed_ports: [22, 80, 443, 41641]
+      allowed_ports: [22, 80, 443, 51820]  # 51820=WireGuard (replaced Tailscale 41641)
     security:
       unattended_upgrades: true
       fail2ban: true

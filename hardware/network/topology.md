@@ -80,50 +80,91 @@
 
 ---
 
-## Tailscale Mesh Overlay — Corrected
+## WireGuard Mesh (Replaced Tailscale 2026-02-21)
 
-> **CRITICAL FIX:** Lucidia and Octavia Tailscale IPs were swapped in prior documentation.
-> Corrected based on SSH config and live `ss` output showing Tailscale binding addresses.
+> **Tailscale removed fleet-wide on 2026-02-21.** Replaced with raw WireGuard.
+> Reason: `tailscaled` userspace daemon had recurring 190% CPU bug on Alice (Pi 4).
+> WireGuard runs in-kernel on Linux = near-zero CPU overhead.
+
+### Architecture: Hub-and-Spoke via Shellfish
 
 ```
-                    ┌───────────────┐
-                    │  Tailscale    │
-                    │  Coord Server │
-                    └───────┬───────┘
-                            │
-        ┌───────────────────┼───────────────────┐
-        │                   │                    │
-   On-Premises         Cloud                 Cloud
-   ┌─────────┐    ┌──────────────┐    ┌──────────────┐
-   │ Cecilia  │    │Codex-Infinity│    │  Shellfish   │
-   │ 100.72.  │    │ 100.108.     │    │ 100.94.      │
-   │ 180.98   │    │ 132.8        │    │ 33.37        │
-   └────┬─────┘    └──────────────┘    └──────────────┘
-        │
-   ┌────┼────┬────────┬─────────┐
-   │    │    │        │         │
-Octavia  │  Aria   Lucidia   Alice
-100.66   │  100.109 100.83   100.77
-.235.47  │  .14.17  .149.86  .210.18
-         │          (DOWN)
-   (Full mesh — every
-    node can reach
-    every other node)
+                    ┌───────────────────┐
+                    │     INTERNET      │
+                    └────────┬──────────┘
+                             │
+                    ┌────────┴──────────┐
+                    │  Shellfish (HUB)  │
+                    │  174.138.44.45    │
+                    │  10.8.0.1/24      │
+                    │  Port 51820/UDP   │
+                    │  IP forwarding ON │
+                    └────────┬──────────┘
+                             │
+       ┌──────────┬──────────┼──────────┬──────────┐
+       │          │          │          │          │
+  ┌────┴────┐┌────┴────┐┌────┴────┐┌────┴────┐┌────┴────┐
+  │Cecilia  ││Lucidia  ││ Alice   ││  Aria   ││Infinity │
+  │10.8.0.3 ││10.8.0.4 ││10.8.0.6 ││10.8.0.7 ││10.8.0.8 │
+  │  .89    ││  .81    ││  .49    ││  .82    ││159.65.  │
+  └─────────┘└─────────┘└─────────┘└─────────┘│ 43.12   │
+                                               └─────────┘
+  PENDING:
+  ┌─────────┐┌─────────┐
+  │Mac      ││Octavia  │
+  │10.8.0.2 ││10.8.0.5 │
+  │(sudo)   ││(SSH key)│
+  └─────────┘└─────────┘
 ```
 
-| Node | Tailscale IP | SSH Alias | Verified By | Status |
-|------|-------------|-----------|-------------|--------|
-| Cecilia | 100.72.180.98 | cecilia-ts | SSH config | Active |
-| Octavia | **100.66.235.47** | octavia-ts | SSH config + `ss` binding | Active |
-| Lucidia | **100.83.149.86** | lucidia-ts | SSH config | **DOWN** |
-| Aria | 100.109.14.17 | aria-ts | SSH config | Active |
-| Alice | 100.77.210.18 | alice-ts | SSH config | Active |
-| Codex-Infinity | 100.108.132.8 | gematria-ts / blackroad-os-ts | SSH config | Active |
-| Shellfish | 100.94.33.37 | anastasia-ts / cadence-ts | SSH config + `ss` binding | Active |
+### WireGuard IP Assignments (10.8.0.0/24)
 
-### Not on Tailscale
+| Node | WG IP | Local IP | Role | Status | Auto-start |
+|------|-------|----------|------|--------|------------|
+| Shellfish | 10.8.0.1 | 174.138.44.45 | **HUB** (forwarding + NAT) | Active, handshaking | `systemctl enable wg-quick@wg0` |
+| Alexandria | 10.8.0.2 | 192.168.4.28 | Client | **Pending** (needs `sudo wg-quick up`) | Config at `~/.wireguard/wg0.conf` |
+| Cecilia | 10.8.0.3 | 192.168.4.89 | Client | Active, handshaking | `systemctl enable wg-quick@wg0` |
+| Lucidia | 10.8.0.4 | 192.168.4.81 | Client | Active, handshaking | `systemctl enable wg-quick@wg0` |
+| Octavia | 10.8.0.5 | 192.168.4.38 | Client | **Pending** (no SSH key for sudo user) | Config at `/tmp/wg-keys/wg0-octavia.conf` |
+| Alice | 10.8.0.6 | 192.168.4.49 | Client | Active, handshaking | `systemctl enable wg-quick@wg0` |
+| Aria | 10.8.0.7 | 192.168.4.82 | Client | Active, handshaking | `systemctl enable wg-quick@wg0` |
+| Infinity | 10.8.0.8 | 159.65.43.12 | Client | Active, handshaking | `systemctl enable wg-quick@wg0` |
 
-- Alexandria (Mac) — tailscale not running
+### Hub Configuration (Shellfish)
+
+- **Firewall:** Port 51820/UDP opened via `firewall-cmd` (CentOS)
+- **IP Forwarding:** `net.ipv4.ip_forward=1` in `/etc/sysctl.d/99-wireguard.conf`
+- **NAT:** `iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE`
+- **Config:** `/etc/wireguard/wg0.conf`
+
+### SSH Access for WireGuard Admin
+
+| Node | SSH User | Sudo | How |
+|------|----------|------|-----|
+| Alice | `alice` | NOPASSWD | `ssh alice@192.168.4.49` |
+| Cecilia | `cecilia` | NOPASSWD | `ssh cecilia@192.168.4.89` |
+| Lucidia | `lucidia` | NOPASSWD | `ssh lucidia@192.168.4.81` |
+| Aria | `aria` | NOPASSWD | `ssh aria@192.168.4.82` |
+| Octavia | `blackroad` | Needs password | **Blocked** — `octavia` user has NOPASSWD but no SSH key |
+| Shellfish | `root` | — | `ssh root@174.138.44.45` |
+| Infinity | `root` | — | `ssh root@159.65.43.12` |
+
+### Tailscale (DEPRECATED — Disabled 2026-02-21)
+
+Tailscale has been `systemctl stop && disable` on all devices. Former IPs for reference only:
+
+| Node | Former Tailscale IP |
+|------|-------------------|
+| Cecilia | 100.72.180.98 |
+| Octavia | 100.66.235.47 |
+| Lucidia | 100.83.149.86 |
+| Aria | 100.109.14.17 |
+| Alice | 100.77.210.18 |
+| Codex-Infinity | 100.108.132.8 |
+| Shellfish | 100.94.33.37 |
+
+### Not on WireGuard (yet)
+
 - Anastasia Pi (192.168.4.33) — SSH closed, can't configure
 - Cordelia (192.168.4.27) — SSH closed, can't configure
 - Olympia — offline
@@ -186,7 +227,7 @@ All blackroad.io DNS resolves to Cloudflare CDN, not origin servers directly:
 | 22 | TCP | SSH | Inbound |
 | 80 | TCP | HTTP | Inbound |
 | 443 | TCP | HTTPS | Inbound |
-| 41641 | UDP | Tailscale | Inbound |
+| 51820 | UDP | WireGuard | Inbound (Shellfish hub only) |
 
 Default policy: **deny** all other inbound.
 

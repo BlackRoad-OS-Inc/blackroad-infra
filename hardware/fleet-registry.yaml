@@ -1,0 +1,467 @@
+# BlackRoad Fleet Registry — Machine-Readable Device Inventory
+# Source of truth for automation and tooling
+# Version: 2.0.0
+# Updated: 2026-02-20
+
+fleet:
+  version: "2.0.0"
+  updated: "2026-02-20"
+  owner: "BlackRoad OS, Inc."
+  domain: "blackroad.io"
+  tailnet: "blackroad"
+  total_devices: 21
+  total_ai_tops: 135
+
+  tiers:
+    production:
+      description: "Always-on Pi cluster"
+      count: 8
+    cloud:
+      description: "DigitalOcean droplets"
+      count: 2
+    edge:
+      description: "Jetson + constellation Pis"
+      count: 4
+    mesh:
+      description: "ESP32 LoRa + MCU array"
+      count: 21
+    consumer:
+      description: "Roku, Xbox, iPhone, MacBooks"
+      count: 7
+    retired:
+      description: "Returned or decommissioned"
+      count: 1
+
+  devices:
+    # ── Production Cluster ──────────────────────────────────────
+    - name: cecilia
+      tier: production
+      hardware: "Raspberry Pi 5"
+      ram: "8GB"
+      storage: "500GB NVMe (Crucial P310)"
+      case: "Standard"
+      accelerator: "Hailo-8 M.2 26 TOPS"
+      accelerator_serial: "HLLWM2B233704667"
+      cooling: "Active fan"
+      psu: "Geekworm 27W 5V/5A USB-C"
+      ip_local: "192.168.4.89"
+      ip_tailscale: "100.72.180.98"
+      os: "Debian 12 (Bookworm)"
+      kernel: "6.1 LTS"
+      roles:
+        - primary_ai_host
+        - orchestration
+        - inference
+      services:
+        - ollama
+        - cece-os
+        - hailo-runtime
+      ssh: "ssh cecilia"
+      tunnel: "tunnel-cecilia.blackroad.io"
+      status: active
+
+    - name: octavia
+      tier: production
+      hardware: "Raspberry Pi 5"
+      ram: "8GB"
+      storage: "235GB microSD (Samsung EVO Select)"
+      case: "Pironman"
+      accelerator: "Hailo-8 M.2 26 TOPS"
+      accelerator_serial: "HLLWM2B233704606"
+      cooling: "Pironman dual-fan tower"
+      psu: "Geekworm 27W 5V/5A USB-C"
+      ip_local: "192.168.4.38"
+      ip_tailscale: "100.83.149.86"
+      os: "Debian 12 (Bookworm)"
+      kernel: "6.1 LTS"
+      roles:
+        - ai_inference
+        - auth
+        - dns
+      services:
+        - hailo-runtime
+        - powerdns
+        - powerdns-admin
+        - roadauth
+        - roadapi
+        - auth-gateway
+      ssh: "ssh octavia"
+      tunnel: "tunnel-octavia.blackroad.io"
+      status: active
+
+    - name: lucidia
+      tier: production
+      hardware: "Raspberry Pi 5"
+      ram: "8GB"
+      storage: "117GB microSD (Samsung EVO Select)"
+      case: "ElectroCookie Radial Tower"
+      accelerator: null
+      cooling: "ElectroCookie tower cooler"
+      psu: "Geekworm 27W 5V/5A USB-C"
+      ip_local: "192.168.4.81"
+      ip_tailscale: "100.66.235.47"
+      os: "Debian 12 (Bookworm)"
+      kernel: "6.1 LTS"
+      roles:
+        - nats_bus
+        - llm_inference
+        - edge
+      services:
+        - nats
+        - ollama
+        - edge-agent
+      ssh: "ssh lucidia"
+      tunnel: "tunnel-lucidia.blackroad.io"
+      status: active
+
+    - name: aria
+      tier: production
+      hardware: "Raspberry Pi 5"
+      ram: "8GB"
+      storage: "29GB microSD (Samsung EVO Select)"
+      case: "Pironman"
+      accelerator: "Hailo-8 M.2 26 TOPS"
+      cooling: "Pironman dual-fan tower"
+      psu: "Geekworm 27W 5V/5A USB-C"
+      ip_local: "192.168.4.82"
+      ip_tailscale: "100.109.14.17"
+      os: "Debian 12 (Bookworm)"
+      kernel: "6.1 LTS"
+      roles:
+        - api_services
+        - compute
+      services:
+        - compute
+      ssh: "ssh aria"
+      status: active
+
+    - name: anastasia
+      tier: production
+      hardware: "Raspberry Pi 5"
+      ram: "8GB"
+      storage: "NVMe (Crucial P310, Pironman)"
+      case: "Pironman"
+      accelerator: null
+      cooling: "Pironman dual-fan tower"
+      psu: "Geekworm 27W 5V/5A USB-C"
+      ip_local: "192.168.4.33"
+      ip_tailscale: null
+      os: "Debian 12 (Bookworm)"
+      kernel: "6.1 LTS"
+      roles:
+        - ai_inference_secondary
+      services: []
+      ssh: "ssh anastasia"
+      status: active
+
+    - name: cordelia
+      tier: production
+      hardware: "Raspberry Pi 5"
+      ram: "8GB"
+      storage: "microSD"
+      case: "Standard"
+      accelerator: null
+      cooling: "Active cooler"
+      psu: "Geekworm 27W 5V/5A USB-C"
+      ip_local: "192.168.4.27"
+      ip_tailscale: null
+      os: "Debian 12 (Bookworm)"
+      kernel: "6.1 LTS"
+      roles:
+        - orchestration
+      services: []
+      ssh: "ssh cordelia"
+      status: active
+
+    - name: alice
+      tier: production
+      hardware: "Raspberry Pi 400"
+      ram: "4GB"
+      storage: "32GB microSD"
+      case: "Built-in keyboard"
+      accelerator: null
+      cooling: "Passive (built-in)"
+      psu: "5V/3A USB-C (15W)"
+      ip_local: "192.168.4.49"
+      ip_tailscale: "100.77.210.18"
+      os: "Debian 12 (Bookworm)"
+      kernel: "6.1 LTS"
+      roles:
+        - gateway
+        - development
+      services:
+        - worker
+      ssh: "ssh alice"
+      status: active
+
+    - name: olympia
+      tier: production
+      hardware: "Raspberry Pi 4B"
+      ram: "4GB"
+      storage: "microSD"
+      case: "PiKVM case"
+      accelerator: null
+      cooling: "Passive"
+      psu: "5V/3A USB-C (15W)"
+      ip_local: null
+      ip_tailscale: null
+      os: "PiKVM OS"
+      roles:
+        - kvm_console
+      services: []
+      ssh: null
+      status: offline
+
+    # ── Cloud Compute ───────────────────────────────────────────
+    - name: codex-infinity
+      tier: cloud
+      hardware: "DigitalOcean Droplet"
+      ram: "1GB"
+      storage: "78GB SSD"
+      ip_local: "159.65.43.12"
+      ip_tailscale: "100.108.132.8"
+      os: "Debian 12 (Bookworm)"
+      kernel: "5.15 LTS"
+      roles:
+        - codex_server
+        - oracle
+      services:
+        - codex-db
+        - cloud-services
+      tunnel: "tunnel-codex.blackroad.io"
+      status: active
+
+    - name: shellfish
+      tier: cloud
+      hardware: "DigitalOcean Droplet"
+      ram: "1GB"
+      storage: "25GB SSD"
+      ip_local: "174.138.44.45"
+      ip_tailscale: "100.94.33.37"
+      os: "Debian 12 (Bookworm)"
+      kernel: "5.15 LTS"
+      roles:
+        - cloud_infrastructure
+        - edge
+      services:
+        - tunnels
+        - edge-agent
+      tunnel: "tunnel-cadence.blackroad.io"
+      status: active
+
+    # ── Edge Compute ────────────────────────────────────────────
+    - name: jetson-agent
+      tier: edge
+      hardware: "NVIDIA Jetson Orin Nano"
+      ram: "8GB"
+      storage: "microSD + NVMe"
+      accelerator: "NVIDIA Ampere GPU 40 TOPS"
+      cooling: "Dev kit heatsink + fan"
+      psu: "Barrel jack (15W)"
+      ip_local: null
+      display: "10.1\" ROADOM Touch IPS 1024x600"
+      roles:
+        - agent_ui
+        - gpu_inference
+      services: []
+      status: pending
+
+    - name: persephone
+      tier: edge
+      hardware: "Sipeed RISC-V"
+      roles:
+        - portable_compute
+      status: active
+
+    # ── Planned Edge Nodes ──────────────────────────────────────
+    - name: pi-holo
+      tier: edge
+      hardware: "Raspberry Pi 5"
+      ram: "8GB"
+      display: "4\" Waveshare 720x720 Square"
+      roles:
+        - hologram_renderer
+      status: planned
+
+    - name: pi-ops
+      tier: edge
+      hardware: "Raspberry Pi 5"
+      ram: "8GB"
+      display: "9.3\" Waveshare 1600x600 Ultrawide"
+      roles:
+        - mqtt_broker
+        - ops_monitor
+      status: planned
+
+    - name: pi-zero-sim
+      tier: edge
+      hardware: "Raspberry Pi Zero W"
+      display: "7\" Waveshare 1024x600 Touch"
+      roles:
+        - sim_output
+      status: ready
+
+    # ── Consumer Devices ────────────────────────────────────────
+    - name: alexandria
+      tier: consumer
+      hardware: "MacBook Pro M1"
+      ram: "8GB"
+      accelerator: "Apple M1 Neural Engine 15.8 TOPS"
+      ip_local: "192.168.4.28"
+      roles:
+        - operator_workstation
+      status: active
+
+    - name: iris
+      tier: consumer
+      hardware: "Roku"
+      ip_local: "192.168.4.26"
+      roles:
+        - streaming
+      status: active
+
+    - name: ares
+      tier: consumer
+      hardware: "Xbox"
+      ip_local: "192.168.4.90"
+      roles:
+        - gaming
+      status: active
+
+    - name: phoebe
+      tier: consumer
+      hardware: "iPhone"
+      ip_local: "192.168.4.88"
+      roles:
+        - mobile
+      status: active
+
+    # ── Retired ─────────────────────────────────────────────────
+    - name: sensecap-watcher-w1a
+      tier: retired
+      hardware: "SenseCAP Watcher W1-A"
+      processor: "ESP32-S3"
+      ai_chip: "Himax WiseEye2 HX6538 (Arm Cortex-M55 + Arm Ethos-U55 NPU)"
+      ai_tops: 1
+      peripherals:
+        - "Camera (image recognition)"
+        - "Microphone (voice control)"
+        - "Speaker (audio output)"
+        - "Capacitive touch interface"
+      connectivity: "WiFi"
+      features:
+        - "On-device AI inference (person/animal/gesture detection)"
+        - "SenseCraft AI integration"
+        - "Voice-activated commands"
+        - "No-code workflow configuration"
+        - "OTA updates"
+      status: returned
+      notes: >
+        Purchased and returned August 2025. ESP32-S3 base with dedicated
+        Himax AI coprocessor. Standalone edge AI unit with camera + mic +
+        speaker. Could be re-acquired for doorbell/monitor use case.
+        Ethos-U55 NPU adds ~1 TOPS for vision inference.
+
+  # ── MCU Array ───────────────────────────────────────────────
+  microcontrollers:
+    - type: "ESP32-S3 SuperMini"
+      quantity: 5
+      connectivity: "WiFi + BLE"
+      form_factor: "Tiny USB-C"
+      purpose: "General IoT"
+
+    - type: "ESP32-S3 N8R8"
+      quantity: 2
+      connectivity: "WiFi + BLE + OTG USB"
+      specs: "8MB PSRAM, 8MB Flash"
+      purpose: "High-memory apps"
+
+    - type: "ESP32 2.8\" Touchscreen"
+      quantity: 3
+      display: "ILI9341 320x240"
+      connectivity: "WiFi + BLE"
+      purpose: "Standalone sensor display"
+
+    - type: "Heltec WiFi LoRa 32 (Athena)"
+      quantity: 1
+      connectivity: "WiFi + LoRa 868/915MHz"
+      display: "0.96\" OLED"
+      ip_local: "192.168.4.45"
+      purpose: "LoRa mesh node"
+
+    - type: "M5Stack Atom Lite"
+      quantity: 2
+      chip: "ESP32-PICO"
+      connectivity: "WiFi + BLE"
+      form_factor: "24x24mm cube"
+      purpose: "Button/LED/Grove peripherals"
+
+    - type: "Raspberry Pi Pico"
+      quantity: 2
+      chip: "RP2040"
+      connectivity: "USB only"
+      purpose: "MicroPython prototyping"
+
+    - type: "ATTINY88"
+      quantity: 3
+      chip: "AVR 8-bit"
+      connectivity: "I2C/SPI (slave only)"
+      purpose: "Low-power peripherals"
+
+    - type: "ELEGOO UNO R3"
+      quantity: 2
+      chip: "ATmega328P"
+      purpose: "Starter kit projects"
+
+    - type: "WCH CH32V003"
+      quantity: 1
+      chip: "RISC-V"
+      purpose: "Ultra-cheap RISC-V experiments"
+
+  # ── Network ─────────────────────────────────────────────────
+  network:
+    lan:
+      subnet: "192.168.4.0/24"
+      gateway: "192.168.4.1"
+      router: "TP-Link"
+      switch: "TP-Link TL-SG105 (5-port gigabit)"
+      wifi: "TP-Link AX3000 PCIe WiFi 6"
+
+    tailscale:
+      tailnet: "blackroad"
+      nodes: 7
+
+    tunnels:
+      provider: "Cloudflare"
+      format: "tunnel-{hostname}.blackroad.io"
+      config_path: "/etc/cloudflared/config.yml"
+
+    dns:
+      provider: "Cloudflare"
+      zone: "blackroad.io"
+      internal_dns: "PowerDNS on Octavia"
+
+  # ── OS Baseline ─────────────────────────────────────────────
+  os_baseline:
+    distribution: "Debian 12 (Bookworm)"
+    kernel_pi: "6.1 LTS"
+    kernel_cloud: "5.15 LTS"
+    init: "systemd"
+    shell: "bash"
+    package_manager: "apt"
+    operator_user: "alexandria"
+    operator_uid: 1000
+    ssh:
+      permit_root: false
+      password_auth: false
+      pubkey_auth: true
+    firewall:
+      tool: "ufw"
+      default: "deny"
+      allowed_ports: [22, 80, 443, 41641]
+    security:
+      unattended_upgrades: true
+      fail2ban: true
+    time_sync:
+      tool: "chrony"
+      server: "time.cloudflare.com"

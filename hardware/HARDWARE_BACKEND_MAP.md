@@ -1,415 +1,569 @@
 # BlackRoad Hardware Backend Map
 
 **Canonical source of truth for all BlackRoad physical infrastructure.**
+**Verified against live network probes — not documentation, not registries.**
 
 | Field | Value |
 |-------|-------|
 | Owner | BlackRoad OS, Inc. |
-| Updated | 2026-02-20 |
-| Fleet Version | 2.0.0 |
-| Total Devices | 21 |
-| Total AI Compute | ~135 TOPS |
-| Network | 192.168.4.0/24 LAN + Tailscale mesh |
+| Updated | 2026-02-21 |
+| Fleet Version | 2.1.0 |
+| Verified | Live SSH + ARP + ping sweep |
+| Total Devices | 21 registered + 4 unidentified |
+| Confirmed AI Compute | 26 TOPS (1x Hailo-8 verified) |
+| Network | 192.168.4.0/24 LAN + 7-node Tailscale mesh |
 
 ---
 
-## 1. Fleet Summary
+## 0. ERRATA — Corrections From Live Verification
 
-| # | Name | Type | Hardware | IP (Local) | IP (Tailscale) | Accelerator | Role | Status |
-|---|------|------|----------|------------|----------------|-------------|------|--------|
-| 1 | Cecilia | Pi 5 | 8GB + Hailo-8 + 500GB NVMe | 192.168.4.89 | 100.72.180.98 | Hailo-8 26 TOPS | Primary AI / CECE OS | Active |
-| 2 | Octavia | Pi 5 | 8GB + Pironman + Hailo-8 | 192.168.4.38 | 100.83.149.86 | Hailo-8 26 TOPS | AI Inference | Active |
-| 3 | Lucidia | Pi 5 | 8GB + ElectroCookie | 192.168.4.81 | 100.66.235.47 | — | NATS + Ollama Brain | Active |
-| 4 | Aria | Pi 5 | 8GB + Pironman + Hailo-8 | 192.168.4.82 | 100.109.14.17 | Hailo-8 26 TOPS | API Services | Active |
-| 5 | Anastasia | Pi 5 | 8GB + Pironman + NVMe | 192.168.4.33 | — | — | AI Inference Secondary | Active |
-| 6 | Cordelia | Pi 5 | 8GB | 192.168.4.27 | — | — | Orchestration | Active |
-| 7 | Alice | Pi 400 | 4GB | 192.168.4.49 | 100.77.210.18 | — | Gateway / Auth | Active |
-| 8 | Olympia | Pi 4B | PiKVM | — | — | — | KVM Console | Offline |
-| 9 | Codex-Infinity | DO Droplet | 1 vCPU / 1GB | 159.65.43.12 | 100.108.132.8 | — | Codex Server | Active |
-| 10 | Shellfish | DO Droplet | 1 vCPU / 1GB | 174.138.44.45 | 100.94.33.37 | — | Cloud Edge | Active |
-| 11 | Jetson-Agent | Jetson Orin Nano | 8GB + GPU | — | — | 40 TOPS GPU | Agent UI / Inference | Pending |
-| 12 | Alexandria | MacBook Pro M1 | 8GB | 192.168.4.28 | — | M1 Neural Engine 15.8 TOPS | Operator Workstation | Active |
-| 13 | Athena | Heltec LoRa ESP32 | ESP32 + SX1276 | 192.168.4.45 | — | — | LoRa Mesh Node | Active |
-| 14 | Persephone | Sipeed RISC-V | — | — | — | — | Portable Compute | Active |
-| 15 | Iris | Roku | — | 192.168.4.26 | — | — | Streaming | Active |
-| 16 | Ares | Xbox | — | 192.168.4.90 | — | — | Gaming | Active |
-| 17 | Phoebe | iPhone | — | 192.168.4.88 | — | — | Mobile | Active |
-| 18 | Calliope | Unidentified IoT | — | — | — | — | IoT Node | Active |
-| 19 | Sophia | Unidentified IoT | — | — | — | — | IoT Node | Active |
-| 20 | SenseCAP W1-A | IoT AI Agent | ESP32-S3 + HX6538 | — | — | Ethos-U55 ~1 TOPS | Vision AI | Returned |
-| 21 | Pi-Holo | Pi 5 (planned) | 8GB | — | — | — | Hologram Renderer | Planned |
+> **This section documents discrepancies found between prior documentation
+> and actual live system state as of 2026-02-21.**
+
+| Issue | Prior Documentation | Live Reality |
+|-------|-------------------|--------------|
+| Hailo-8 count | 3 units (Cecilia, Octavia, Aria) | **1 confirmed** (Cecilia only). Octavia/Aria report `HAILO: none` |
+| Lucidia Tailscale IP | 100.66.235.47 | **100.83.149.86** (SSH config + live binding) |
+| Octavia Tailscale IP | 100.83.149.86 | **100.66.235.47** (SSH config + live binding) |
+| Lucidia status | Active | **DOWN** (unreachable via ping, ARP incomplete) |
+| Cecilia OS | Debian 12 Bookworm | **Debian 13 Trixie**, kernel 6.12.62 |
+| Alice OS | Debian 12 Bookworm | **Raspbian 11 Bullseye**, kernel 6.1.21 |
+| Alice storage | 32GB SD | **15GB root partition** (71% used) |
+| Octavia storage used | ~90% | **34%** (76G/235G) — was cleaned up |
+| SSH user | `alexandria` | **`blackroad`** for fleet nodes |
+| Shellfish hostname | shellfish | **`anastasia`** (hostname on the droplet) |
+| Codex-Infinity hostname | codex-infinity | **`gematria`** (hostname on the droplet) |
+| Octavia old IP | 192.168.4.74 (in /etc/hosts) | **192.168.4.38** (current, .74 is stale) |
+| Unknown devices | None documented | **4 found** at .22, .44, .83, .92 |
+| Anastasia/Cordelia SSH | Assumed accessible | **SSH port closed** (ping responds, port 22 refused) |
 
 ---
 
-## 2. Production Cluster — Raspberry Pis
+## 1. Fleet Summary — Live Verified
 
-Eight Raspberry Pi nodes form the always-on backbone.
-
-| Node | Board | RAM | Storage | Case | Accelerator | Cooling | PSU | Role |
-|------|-------|-----|---------|------|-------------|---------|-----|------|
-| Cecilia | Pi 5 | 8GB | 500GB NVMe | Standard | Hailo-8 M.2 (26 TOPS) | Active fan | 27W USB-C | Primary AI, CECE OS |
-| Octavia | Pi 5 | 8GB | 235GB SD | Pironman | Hailo-8 M.2 (26 TOPS) | Pironman dual-fan tower | 27W USB-C | AI Inference |
-| Lucidia | Pi 5 | 8GB | 117GB SD | ElectroCookie Radial Tower | — | ElectroCookie tower | 27W USB-C | NATS bus, Ollama |
-| Aria | Pi 5 | 8GB | 29GB SD | Pironman | Hailo-8 M.2 (26 TOPS) | Pironman dual-fan tower | 27W USB-C | API Services |
-| Anastasia | Pi 5 | 8GB | NVMe (Pironman) | Pironman | — | Pironman dual-fan tower | 27W USB-C | AI Inference Secondary |
-| Cordelia | Pi 5 | 8GB | SD | Standard | — | Active cooler | 27W USB-C | Orchestration |
-| Alice | Pi 400 | 4GB | 32GB SD | Built-in keyboard | — | Passive (built-in) | 15W USB-C | Gateway, Auth |
-| Olympia | Pi 4B | 4GB | SD | PiKVM case | — | Passive | 15W USB-C | KVM Console |
-
-### SSH Access
-
-```bash
-ssh alice         # 192.168.4.49
-ssh lucidia       # 192.168.4.81  (or lucidia-ts for Tailscale)
-ssh aria          # 192.168.4.82  (or aria-ts)
-ssh cecilia       # 192.168.4.89  (or cecilia-ts)
-ssh octavia       # 192.168.4.38  (or octavia-ts)
-ssh anastasia     # 192.168.4.33
-ssh cordelia      # 192.168.4.27
-```
-
-### OS Baseline
-
-All Pis run Debian 12 (Bookworm) with:
-- Kernel: 6.1 LTS
-- User: `alexandria` (uid 1000)
-- SSH: key-only, no password auth
-- Firewall: UFW (deny by default, allow 22/80/443/41641)
-- Time sync: chrony → time.cloudflare.com
-- Auto-updates: unattended-upgrades + fail2ban
+| # | Name | Type | Hardware | IP (Local) | IP (Tailscale) | Accelerator | Status | Verified |
+|---|------|------|----------|------------|----------------|-------------|--------|----------|
+| 1 | Cecilia | Pi 5 | 8GB, Hailo-8, 457GB NVMe | 192.168.4.89 | 100.72.180.98 | **Hailo-8 26 TOPS** (confirmed /dev/hailo0) | **UP** | SSH |
+| 2 | Octavia | Pi 5 | 8GB, Pironman, 235GB SD | 192.168.4.38 | 100.66.235.47 | **None** (HAILO: none) | **UP** | SSH |
+| 3 | Lucidia | Pi 5 | 8GB, ElectroCookie | 192.168.4.81 | 100.83.149.86 | — | **DOWN** | Ping fail |
+| 4 | Aria | Pi 5 | 8GB, 29GB SD | 192.168.4.82 | 100.109.14.17 | **None** (HAILO: none) | **UP** | SSH |
+| 5 | Anastasia | Pi 5 | 8GB | 192.168.4.33 | — | — | **SSH closed** | ARP + ping |
+| 6 | Cordelia | Pi 5 | 8GB | 192.168.4.27 | — | — | **SSH closed** | ARP + ping |
+| 7 | Alice | Pi 400 | 4GB, 15GB root | 192.168.4.49 | 100.77.210.18 | — | **UP** | SSH |
+| 8 | Olympia | Pi 4B | PiKVM | — | — | — | **Offline** | Not probed |
+| 9 | Codex-Infinity | DO Droplet | AMD vCPU, 765MB RAM | 159.65.43.12 | 100.108.132.8 | — | **UP** | SSH (hostname: gematria) |
+| 10 | Shellfish | DO Droplet | AMD vCPU, 765MB RAM | 174.138.44.45 | 100.94.33.37 | — | **UP** | SSH (hostname: anastasia) |
+| 11 | Jetson-Agent | Jetson Orin Nano | 8GB + GPU | — | — | 40 TOPS GPU | **Pending** | Not deployed |
+| 12 | Alexandria | MacBook Pro M1 | 8GB | 192.168.4.28 | — | M1 NE 15.8 TOPS | **UP** | Self |
+| 13 | Athena | Heltec LoRa ESP32 | ESP32 + SX1276 | 192.168.4.45 | — | — | **UP** | ARP |
+| 14 | Persephone | Sipeed RISC-V | — | — | — | — | Unknown | Registry only |
+| 15 | Iris | Roku | — | 192.168.4.26 | — | — | **UP** | ARP |
+| 16 | Ares | Xbox | — | 192.168.4.90 | — | — | **DOWN** | Ping fail |
+| 17 | Phoebe | iPhone | — | 192.168.4.88 | — | — | **DOWN** | Ping fail |
+| 18 | .22 unknown | **UNIDENTIFIED** | — | 192.168.4.22 | — | — | **UP** | ARP (30:be:29) |
+| 19 | .44 unknown | **TP-Link device** | — | 192.168.4.44 | — | — | **UP** | ARP (98:17:3c) |
+| 20 | .83 unknown | **UNIDENTIFIED** | — | 192.168.4.83 | — | — | **UP** | ARP (54:4c:8a) |
+| 21 | .92 unknown | **Apple device** (private MAC) | — | 192.168.4.92 | — | — | **DOWN** | Stale ARP |
 
 ---
 
-## 3. Cloud Compute
+## 2. Production Cluster — Raspberry Pis (Live Data)
 
-Two DigitalOcean droplets provide cloud presence.
-
-| Node | Region | Spec | Public IP | Tailscale IP | Storage | Role |
-|------|--------|------|-----------|--------------|---------|------|
-| Codex-Infinity | NYC | 1 vCPU / 1GB | 159.65.43.12 | 100.108.132.8 | 78GB SSD | Codex DB, cloud services |
-| Shellfish | NYC | 1 vCPU / 1GB | 174.138.44.45 | 100.94.33.37 | 25GB SSD | Edge compute, tunnels |
-
-### OS Baseline
-
-- Debian 12 (Bookworm), Kernel 5.15 LTS
-- Same user/SSH/firewall config as Pis
-- Cloudflare tunnels for ingress
-
----
-
-## 4. Edge Compute
-
-| Node | Hardware | Status | Purpose |
-|------|----------|--------|---------|
-| Jetson-Agent | NVIDIA Jetson Orin Nano 8GB | Pending setup | Agent UI on 10.1" touch, GPU inference |
-| Pi-Holo | Pi 5 8GB (planned) | Planned | Hologram renderer on 4" 720x720 display |
-| Pi-Ops | Pi 5 8GB (planned) | Planned | MQTT broker + ops monitor on 9.3" ultrawide |
-| Pi-Zero-Sim | Pi Zero W | Ready | Lightweight sim output on 7" display |
-| Persephone | Sipeed RISC-V | Active | Portable RISC-V compute experiments |
-
----
-
-## 5. Microcontroller Array
-
-| MCU | Chip | Qty | Connectivity | Form Factor | Purpose |
-|-----|------|-----|--------------|-------------|---------|
-| ESP32-S3 SuperMini | ESP32-S3 | 5 | WiFi + BLE | Tiny USB-C | General IoT |
-| ESP32-S3 N8R8 | ESP32-S3 | 2 | WiFi + BLE + OTG | Dev board | 8MB PSRAM apps |
-| ESP32 Touchscreen | ESP32 | 3 | WiFi + BLE | 2.8" TFT (320x240) | Standalone sensor display |
-| Athena (Heltec LoRa) | ESP32 + SX1276 | 1 | WiFi + LoRa 868/915MHz | OLED 0.96" | LoRa mesh node |
-| M5Stack Atom Lite | ESP32-PICO | 2 | WiFi + BLE | 24x24mm cube | Button/LED/Grove |
-| Raspberry Pi Pico | RP2040 | 2 | USB only | Breadboard | MicroPython prototyping |
-| ATTINY88 | AVR 8-bit | 3 | None (I2C/SPI slave) | DIP | Low-power peripherals |
-| ELEGOO UNO R3 | ATmega328P | 2 | USB | Arduino form factor | Starter kit projects |
-| WCH CH32V003 | RISC-V | 1 | USB | Minimal | Ultra-cheap RISC-V |
-
-**Total MCUs: 21 units**
-
-### Flashing Tools
-- `esptool.py` / `espflash` for ESP32 family
-- `arduino-cli` for Arduino/ATmega boards
-- PlatformIO for cross-platform builds
-- `picotool` for Pico RP2040
-
----
-
-## 6. IoT & Sensor Devices
-
-### SenseCAP Watcher W1-A
+### Cecilia — Primary AI Host (VERIFIED)
 
 | Field | Value |
 |-------|-------|
-| Name | SenseCAP Watcher W1-A |
-| Type | IoT AI Agent |
-| Status | **Returned** (August 2025) |
-| Processor | ESP32-S3 |
-| AI Chip | Himax WiseEye2 HX6538 (Arm Cortex-M55 + Arm Ethos-U55 NPU) |
-| AI Compute | ~1 TOPS (Ethos-U55) |
-| Camera | Image recognition (person/animal/gesture detection) |
-| Microphone | Voice-activated commands |
-| Speaker | Audio output |
-| Touch | Capacitive touch interface |
-| Connectivity | WiFi |
-| Features | On-device AI inference, SenseCraft AI, no-code workflows, OTA |
-| Notes | Purchased and returned Aug 2025. Standalone edge AI unit with dedicated Himax coprocessor. Could be re-acquired for doorbell/monitor use case. |
+| Board | Raspberry Pi 5 Model B Rev 1.1 |
+| OS | **Debian 13 (Trixie)** |
+| Kernel | 6.12.62+rpt-rpi-2712 |
+| RAM | 7.9GB total, 3.3GB used, 4.6GB available |
+| Storage | /dev/nvme0n1p2 **457GB**, 65GB used (**15%**) |
+| IP Local | 192.168.4.89 |
+| IP Tailscale | 100.72.180.98 |
+| MAC | 88:a2:9e:3b:eb:72 |
+| Hailo-8 | **/dev/hailo0 DETECTED**, serial HLLWM2B233704667 |
+| Uptime | 2h 3m (recently rebooted) |
+| Load | 3.40, 3.15, 3.48 |
+| SSH | `ssh cecilia` (user: blackroad) |
 
-### Sensor Inventory
+**Services (systemd):**
+- `hailort.service` — HailoRT AI runtime
+- `ollama.service` — LLM inference (port 11434, localhost only)
+- `cloudflared.service` — Cloudflare tunnel
+- `docker.service` — Container runtime
 
-| Sensor | Type | Interface | Attached To |
-|--------|------|-----------|-------------|
-| DHT22 | Temperature / Humidity | GPIO | Available |
-| Radar (HLK-LD2410 / RCWL-0516) | Presence / Motion | GPIO/UART | Available |
-| GPS Module | NMEA Location | UART | Available |
-| ToF (VL53L0X / VL53L1X) | Distance (mm) | I2C | Available |
-| AS7341 | Spectral 11-channel | I2C | Available |
-| Pi Camera V2 | 8MP IMX219 | CSI | Available |
-| USB + I2S MEMS Mics | Audio capture | USB / I2S | Available |
-| Ultrasonic | Distance | GPIO | ELEGOO kit |
-| PIR | Motion | GPIO | ELEGOO kit |
-| Photoresistor | Light level | ADC | ELEGOO kit |
-| IR Receiver | Remote control | GPIO | ELEGOO kit |
-| Joystick | Analog input | ADC | ELEGOO kit |
+**Listening Ports:**
 
-### IoT Nodes (Unidentified)
-
-| Name | Platform | Status | Notes |
-|------|----------|--------|-------|
-| Calliope | Unknown IoT | Active | Registered in agent registry, needs identification |
-| Sophia | Unknown IoT | Active | Registered in agent registry, needs identification |
-
----
-
-## 7. Consumer Devices
-
-| Name | Hardware | IP | Role | Notes |
-|------|----------|-----|------|-------|
-| Iris | Roku | 192.168.4.26 | Streaming | Media playback |
-| Ares | Xbox | 192.168.4.90 | Gaming | Entertainment |
-| Phoebe | iPhone | 192.168.4.88 | Mobile | Monitoring, OOB access |
-| Alexandria | MacBook Pro M1 8GB | 192.168.4.28 | Primary operator | Development, orchestration |
-| MacBook #1 | ~2014 Intel MacBook | — | Monitoring station | Secondary display |
-| MacBook #2 | ~2014 Intel MacBook | — | Agent orchestrator | Secondary display |
-| iPad Pro | 2015 iPad Pro | — | Tablet | Touch interface |
+| Port | Service | Bind |
+|------|---------|------|
+| 22 | SSH | 0.0.0.0 |
+| 53 | DNS | 0.0.0.0 |
+| 80 | HTTP | 0.0.0.0 |
+| 3001 | Python app | 0.0.0.0 |
+| 3100 | Loki/log collector | 0.0.0.0 |
+| 5001 | Python app | 0.0.0.0 |
+| 5002 | Python app | 0.0.0.0 |
+| 5432 | PostgreSQL | 127.0.0.1 |
+| 5900 | VNC | 0.0.0.0 |
+| 8086 | InfluxDB | 0.0.0.0 |
+| 8787 | Python app | 0.0.0.0 |
+| 9000 | MinIO | 0.0.0.0 + [::] |
+| 9001 | MinIO Console | 0.0.0.0 |
+| 9100 | Node Exporter | 0.0.0.0 |
+| 11434 | Ollama | 127.0.0.1 |
+| 34001 | Tailscale relay | 0.0.0.0 |
 
 ---
 
-## 8. AI Accelerator Summary
+### Octavia — Heavy Services (VERIFIED)
 
-| Accelerator | Location | Architecture | Compute | Status |
-|-------------|----------|--------------|---------|--------|
-| Hailo-8 M.2 #1 | Cecilia | Hailo-8 (serial: HLLWM2B233704667) | 26 TOPS | Active |
-| Hailo-8 M.2 #2 | Octavia | Hailo-8 (serial: HLLWM2B233704606) | 26 TOPS | Active |
-| Hailo-8 M.2 #3 | Aria | Hailo-8 M.2 | 26 TOPS | Active |
-| Jetson Orin Nano | Jetson-Agent | NVIDIA Ampere GPU | 40 TOPS | Pending |
-| Apple M1 Neural Engine | Alexandria | Apple Neural Engine | 15.8 TOPS | Active |
-| Himax Ethos-U55 | SenseCAP W1-A | Arm Ethos-U55 NPU | ~1 TOPS | Returned |
+| Field | Value |
+|-------|-------|
+| Board | Raspberry Pi 5 Model B Rev 1.1 |
+| OS | Debian 12 (Bookworm) |
+| Kernel | 6.12.62+rpt-rpi-2712 |
+| RAM | 7.9GB total, **6.6GB used**, 1.3GB available |
+| Storage | /dev/mmcblk0p2 **235GB**, 76GB used (**34%**) |
+| IP Local | 192.168.4.38 |
+| IP Tailscale | **100.66.235.47** |
+| MAC | 2c:cf:67:cf:fa:17 |
+| Hailo-8 | **NONE** |
+| Uptime | 2 days, 8h 40m |
+| Load | **9.47**, 9.82, 10.52 (VERY HIGH) |
+| SSH | `ssh octavia` (user: blackroad) |
 
-### Total AI Compute Budget
+**Services (systemd):**
+- `ollama.service` — LLM inference
+- `ollama-bridge.service` — SSE chat proxy
+- `cloudflared.service` — Cloudflare tunnel
+- `docker.service` — Container runtime
 
-| Category | TOPS |
-|----------|------|
-| Hailo-8 (3 units) | 78 |
-| Jetson Orin Nano | 40 |
-| Apple M1 Neural Engine | 15.8 |
-| Ethos-U55 (returned) | ~1 |
-| **Total (active)** | **~134 TOPS** |
-| **Total (including returned/pending)** | **~135 TOPS** |
+**Listening Ports (28+ services):**
 
-### Model Compatibility
+| Port | Service | Bind |
+|------|---------|------|
+| 3002-3006 | App services | 0.0.0.0 |
+| 3109 | App service | 0.0.0.0 |
+| 4001-4002 | App services | 0.0.0.0 |
+| 4010 | App service | 127.0.0.1 |
+| 5200-5900 | Python microservices (7 ports) | 0.0.0.0 |
+| 6000-6300 | Python microservices (4 ports) | 0.0.0.0 |
+| 8000 | API (uvicorn/gunicorn) | 0.0.0.0 |
+| 8011 | Python service | 0.0.0.0 |
+| 8080-8082 | HTTP services | 0.0.0.0 |
+| 8180 | Python service | 0.0.0.0 |
+| 5432 | PostgreSQL | 127.0.0.1 |
+| 11434 | Ollama | 127.0.0.1 |
+| 34001 | Tailscale relay | 0.0.0.0 |
 
-| Model | Hailo-8 | Jetson | M1 |
-|-------|---------|--------|----|
-| YOLOv5m | HEF compiled | TensorRT | CoreML |
-| YOLOv8 | HEF compiled | TensorRT | CoreML |
-| Llama 2 7B | — | CUDA | Ollama (Metal) |
-| Whisper | — | CUDA | Ollama |
-| ResNet-50 | HEF compiled | TensorRT | CoreML |
-
----
-
-## 9. Network Topology
-
-### LAN (192.168.4.0/24)
-
-```
-                        ┌──────────────┐
-                        │  TP-Link     │
-                        │  Router/WiFi │
-                        │ 192.168.4.1  │
-                        └──────┬───────┘
-                               │
-                    ┌──────────┴──────────┐
-                    │  TP-Link TL-SG105   │
-                    │  5-Port Gigabit SW   │
-                    └┬────┬────┬────┬────┘
-                     │    │    │    │
-              ┌──────┘    │    │    └──────┐
-              │           │    │           │
-         ┌────┴────┐ ┌───┴──┐ ┌┴────┐ ┌──┴──────┐
-         │ Cecilia │ │Lucia │ │Aria │ │ Octavia │
-         │  .89    │ │ .81  │ │ .82 │ │  .38    │
-         │ Hailo-8 │ │ NATS │ │Hail │ │ Hailo-8 │
-         └─────────┘ └──────┘ └─────┘ └─────────┘
-
-    WiFi:
-         ┌─────────┐ ┌──────┐ ┌───────┐ ┌───────────┐
-         │ Alice   │ │Anast.│ │Cordel.│ │Alexandria │
-         │  .49    │ │ .33  │ │  .27  │ │   .28     │
-         └─────────┘ └──────┘ └───────┘ └───────────┘
-         ┌─────────┐ ┌──────┐ ┌───────┐ ┌───────────┐
-         │ Athena  │ │Phoebe│ │ Ares  │ │   Iris    │
-         │  .45    │ │ .88  │ │  .90  │ │   .26     │
-         └─────────┘ └──────┘ └───────┘ └───────────┘
-```
-
-### Tailscale Mesh Overlay
-
-| Node | Tailscale IP | Connected |
-|------|-------------|-----------|
-| Cecilia | 100.72.180.98 | Yes |
-| Lucidia | 100.66.235.47 | Yes |
-| Octavia | 100.83.149.86 | Yes |
-| Aria | 100.109.14.17 | Yes |
-| Alice | 100.77.210.18 | Yes |
-| Codex-Infinity | 100.108.132.8 | Yes |
-| Shellfish | 100.94.33.37 | Yes |
-
-### DNS & Tunnels
-
-- Cloudflare DNS: `blackroad.io` zone
-- Cloudflare tunnels per node: `tunnel-{hostname}.blackroad.io`
-- Headscale: self-hosted coordination on Alice (planned)
+> **WARNING:** Load average 9.47 on a 4-core Pi 5. This node is overloaded.
+> RAM 6.6/7.9GB. Consider migrating services.
 
 ---
 
-## 10. Storage Infrastructure
+### Aria — API Services (VERIFIED)
 
-| Node | Type | Capacity | Interface | Used | Notes |
-|------|------|----------|-----------|------|-------|
-| Cecilia | NVMe M.2 | 500GB | PCIe | ~50% | Crucial P310 |
-| Anastasia | NVMe M.2 | 1TB | PCIe (Pironman) | — | Crucial P310 |
-| Octavia | microSD | 235GB | SD slot | ~90% | Samsung EVO Select, needs cleanup |
-| Lucidia | microSD | 117GB | SD slot | ~60% | Samsung EVO Select |
-| Alice | microSD | 32GB | SD slot | ~93% | Needs cleanup |
-| Aria | microSD | 29GB | SD slot | ~70% | Samsung EVO Select |
-| Codex-Infinity | SSD | 78GB | Cloud block | ~40% | DigitalOcean |
-| Shellfish | SSD | 25GB | Cloud block | ~50% | DigitalOcean |
+| Field | Value |
+|-------|-------|
+| Board | Raspberry Pi 5 Model B Rev 1.1 |
+| OS | Debian 12 (Bookworm) |
+| Kernel | 6.12.62+rpt-rpi-2712 |
+| RAM | 7.9GB total, 3.8GB used, 4.0GB available |
+| Storage | /dev/mmcblk0p2 **29GB**, 20GB used (**74%**) |
+| IP Local | 192.168.4.82 |
+| IP Tailscale | 100.109.14.17 |
+| MAC | 88:a2:9e:0d:42:07 |
+| Hailo-8 | **NONE** |
+| Uptime | 3h 54m |
+| Load | 0.45, 0.60, 0.68 |
+| SSH | `ssh aria` (user: blackroad) |
 
----
+**Services (systemd):**
+- `ollama.service` — LLM inference
+- `cloudflared.service` — Cloudflare tunnel
+- `docker.service` — Container runtime
 
-## 11. Power & Cooling
+**Listening Ports (28+ services):**
 
-| Node | PSU | Watts | Cooling |
-|------|-----|-------|---------|
-| Pi 5 nodes (Cecilia, Lucidia, Aria, Octavia, Anastasia, Cordelia) | Geekworm 27W 5V/5A USB-C | 27W | Pironman dual-fan / ElectroCookie tower / Active cooler |
-| Alice (Pi 400) | 5V/3A USB-C | 15W | Passive (built-in) |
-| Olympia (Pi 4B) | 5V/3A USB-C | 15W | Passive |
-| Jetson Orin Nano | Barrel jack | 15W | Dev kit heatsink + fan |
-| Pi Zero W | 5V/2A Micro USB | 10W | None |
-| Displays | Various 5V wall adapters | 5-15W each | N/A |
-| DigitalOcean droplets | Cloud-managed | — | Cloud-managed |
+| Port Range | Count | Service |
+|------------|-------|---------|
+| 3140-3167 | 28 | Docker container ports |
+| 3153-3167 | 15 | (subset, unique services) |
+| 8081 | 1 | HTTP service |
+| 8180 | 1 | Python service |
 
-### Total Power Budget (On-Premises)
-
-| Category | Devices | Est. Draw |
-|----------|---------|-----------|
-| Pi 5 cluster (6) | Cecilia, Lucidia, Aria, Octavia, Anastasia, Cordelia | ~60W peak |
-| Pi 400 + Pi 4B | Alice, Olympia | ~20W peak |
-| Jetson Orin Nano | Jetson-Agent | ~15W peak |
-| Displays (5) | Various | ~30W |
-| Networking | Router + Switch | ~15W |
-| Mac + peripherals | Alexandria | ~30W |
-| **Total** | | **~170W peak** |
+> **WARNING:** 74% disk on 29GB. Only 7.3GB free. Needs storage upgrade or cleanup.
 
 ---
 
-## 12. Display Inventory
+### Alice — Gateway (VERIFIED)
 
-| Size | Resolution | Model | Assigned To | Interface |
-|------|-----------|-------|-------------|-----------|
-| 10.1" | 1024x600 | ROADOM Touch IPS | Jetson-Agent | HDMI + USB touch |
-| 9.3" | 1600x600 | Waveshare Ultrawide | Pi-Ops (shared via HDMI switch) | HDMI |
-| 7" | 1024x600 | Waveshare Touch | Pi-Zero-Sim | HDMI + USB touch |
-| 4" | 720x720 | Waveshare Square | Pi-Holo | HDMI |
-| 2.8" | 320x240 | ESP32 Touch TFT (x3) | ESP32 MCUs | SPI |
-| 0.96" | 128x64 | OLED (x3) | Arduino / ESP32 | I2C |
+| Field | Value |
+|-------|-------|
+| Board | Raspberry Pi 400 Rev 1.0 |
+| OS | **Raspbian 11 (Bullseye)** — NOT Bookworm |
+| Kernel | **6.1.21-v8+** |
+| RAM | 3.7GB total, 579MB used, 3.1GB available |
+| Storage | /dev/root **15GB**, 9.6GB used (**71%**) |
+| IP Local | 192.168.4.49 |
+| IP Tailscale | 100.77.210.18 |
+| MAC | d8:3a:dd:ff:98:87 |
+| Hailo-8 | None |
+| Uptime | 2 days, 6h 24m |
+| Load | 6.17, 5.60, 5.56 (HIGH for 4 cores) |
+| SSH | `ssh alice` (user: blackroad) |
 
-### Video Routing
+**Services (systemd):**
+- `cloudflared.service` — Cloudflare tunnel
+- `docker.service` — Container runtime
 
-- UGREEN HDMI Switch 5-in-1: shares 9.3" between Pi-Ops and Pi 400
-- WAVLINK HDMI Splitter: clone Pi-Holo to second display
-- WARRKY USB-C to HDMI (2-pack): Mac to display
-- JSAUX Micro HDMI adapters: Pi to display
-
----
-
-## 13. Management Tools
-
-| Script | Location | Purpose |
-|--------|----------|---------|
-| `hardware.sh` | `~/hardware.sh` | Interactive fleet overview menu |
-| `hailo.sh` | `~/hailo.sh` | Hailo-8 detection, benchmarks, inference |
-| `mcus.sh` | `~/mcus.sh` | Microcontroller fleet status |
-| `sensors.sh` | `~/sensors.sh` | Sensor inventory and live readings |
-| `espflash.sh` | `~/espflash.sh` | ESP32 flashing tool |
-| `i2c.sh` | `~/i2c.sh` | I2C bus scanning |
-| `lora.sh` | `~/lora.sh` | LoRa network tools |
-| `blackroad-network-scan.sh` | `~/blackroad-network-scan.sh` | ARP + ping sweep + Tailscale status |
-| `blackroad-network-discovery.sh` | `~/blackroad-network-discovery.sh` | SSH probe all devices |
-| `pifleet.sh` | `~/pifleet.sh` | Pi-specific fleet management |
-| `hardware-inventory.sh` | `hardware/scripts/hardware-inventory.sh` | Registry query + live scan (this repo) |
-| `fleet-health-check.sh` | `hardware/scripts/fleet-health-check.sh` | Ping + port check (this repo) |
+> **WARNING:** Load average 6.17 on a Pi 400 (4-core). 71% disk. Consider upgrading OS to Bookworm.
 
 ---
 
-## 14. Provisioning Phases
+### Lucidia — DOWN
 
-All nodes follow a 4-phase provisioning process:
+| Field | Value |
+|-------|-------|
+| Board | Raspberry Pi 5 (per registry) |
+| IP Local | 192.168.4.81 |
+| IP Tailscale | 100.83.149.86 |
+| MAC | **Not in ARP** (incomplete) |
+| Status | **UNREACHABLE** — ping fails, ARP incomplete |
+| Last Known | NATS bus, Ollama, edge-agent |
 
-1. **Base Image** — Flash Debian 12, create `alexandria` user, deploy SSH keys, enable UFW
-2. **Fleet Identity** — Install Tailscale, configure `/etc/hosts`, deploy SSH aliases, set MOTD banner
-3. **Role Provisioning** — Install role-specific packages/services, deploy systemd units, configure Cloudflare tunnel
-4. **Cloud Integration** — Deploy GitHub deploy key, register in fleet inventory, verify connectivity
-
-See `~/blackroad-fleet.yaml` for the full provisioning spec.
+> **ACTION REQUIRED:** Lucidia is down. Check power supply, SD card, network cable.
+> This is the NATS event bus node — its absence may affect inter-node messaging.
 
 ---
 
-## Appendix A: IP Address Registry
+### Anastasia — SSH Closed
 
-### LAN (192.168.4.0/24)
+| Field | Value |
+|-------|-------|
+| Board | Raspberry Pi 5 (confirmed by MAC OUI 60:92:c8 = Pi 5) |
+| IP Local | 192.168.4.33 |
+| MAC | 60:92:c8:11:cf:7c |
+| Ping | **Responds** |
+| SSH | **Connection refused** (port 22 closed) |
+| Status | Powered on but not provisioned for SSH access |
 
-| IP | Hostname | Type |
-|----|----------|------|
-| 192.168.4.1 | Router | TP-Link |
-| 192.168.4.26 | Iris | Roku |
-| 192.168.4.27 | Cordelia | Pi 5 |
-| 192.168.4.28 | Alexandria | MacBook Pro M1 |
-| 192.168.4.33 | Anastasia | Pi 5 |
-| 192.168.4.38 | Octavia | Pi 5 |
-| 192.168.4.45 | Athena | Heltec LoRa ESP32 |
-| 192.168.4.49 | Alice | Pi 400 |
-| 192.168.4.81 | Lucidia | Pi 5 |
-| 192.168.4.82 | Aria | Pi 5 |
-| 192.168.4.88 | Phoebe | iPhone |
-| 192.168.4.89 | Cecilia | Pi 5 |
-| 192.168.4.90 | Ares | Xbox |
+> **ACTION REQUIRED:** SSH not configured. Needs keyboard/monitor access to enable SSH or re-flash SD.
 
-### Cloud
+---
 
-| IP | Hostname | Provider |
-|----|----------|----------|
-| 159.65.43.12 | Codex-Infinity | DigitalOcean |
-| 174.138.44.45 | Shellfish | DigitalOcean |
+### Cordelia — SSH Closed
 
-### Tailscale (100.x.x.x)
+| Field | Value |
+|-------|-------|
+| Board | Raspberry Pi 5 (confirmed by MAC OUI 6c:4a:85 = Pi 5) |
+| IP Local | 192.168.4.27 |
+| MAC | 6c:4a:85:32:ae:72 |
+| Ping | **Responds** |
+| SSH | **Connection refused** (port 22 closed) |
+| Status | Powered on but not provisioned for SSH access |
 
-| IP | Hostname |
-|----|----------|
-| 100.66.235.47 | Lucidia |
-| 100.72.180.98 | Cecilia |
-| 100.77.210.18 | Alice |
-| 100.83.149.86 | Octavia |
-| 100.94.33.37 | Shellfish |
-| 100.108.132.8 | Codex-Infinity |
-| 100.109.14.17 | Aria |
+> **ACTION REQUIRED:** Same as Anastasia — needs initial SSH setup.
+
+---
+
+### Olympia — Offline
+
+| Field | Value |
+|-------|-------|
+| Board | Raspberry Pi 4B (PiKVM) |
+| IP Local | pikvm.local (mDNS) |
+| SSH | `ssh root@pikvm.local` |
+| Status | **Offline** — not on network |
+
+---
+
+## 3. Cloud Compute (Live Verified)
+
+### Codex-Infinity / "gematria" (159.65.43.12)
+
+| Field | Value |
+|-------|-------|
+| Provider | DigitalOcean |
+| CPU | DO-Premium-AMD (1 vCPU) |
+| OS | (Debian/Ubuntu based) |
+| RAM | ~765MB |
+| Storage | 25GB+ |
+| Public IP | 159.65.43.12 |
+| Tailscale IP | 100.108.132.8 |
+| Actual Hostname | **gematria** |
+| Uptime | 55+ days |
+| SSH | `ssh gematria` (user: blackroad) |
+| Root | `ssh blackroad-os-infinity-root` (user: root) |
+
+**Services:**
+- `ollama.service` — LLM inference (port 11434, public!)
+- `nginx.service` — Reverse proxy (80, 443)
+- `cloudflared.service` — Tunnel
+- Caddy (port 2019 admin)
+- Python app (8787)
+- Custom app (8011)
+
+---
+
+### Shellfish / "anastasia" (174.138.44.45)
+
+| Field | Value |
+|-------|-------|
+| Provider | DigitalOcean |
+| CPU | DO-Premium-AMD (1 vCPU) |
+| OS | **CentOS Stream 9** (kernel 5.14.0-651.el9.x86_64) |
+| RAM | 765MB total, 408MB used |
+| Storage | 25GB, 15GB used (57%) |
+| Public IP | 174.138.44.45 |
+| Tailscale IP | 100.94.33.37 |
+| Actual Hostname | **anastasia** |
+| Uptime | **55 days** |
+| SSH | `ssh anastasia` or `ssh cadence` (user: blackroad/shellfish) |
+| Root | `ssh shellfish-root` (user: root) |
+
+**Services:**
+- `ollama.service` — LLM inference (port 11434, Tailscale-only at 100.64.0.1)
+- `nginx.service` — Reverse proxy (80)
+- `cloudflared.service` — Tunnel
+- `docker.service` — Container runtime
+- uvicorn API (port 8000)
+- WebSocket servers (8765, 8766)
+- Redis-like (6379)
+- Grafana/dashboard (3000, 3001)
+- Python apps (8080, 8787, 8888)
+
+> **NAMING CONFUSION:** This droplet's hostname is "anastasia" which collides
+> with the Pi 5 at 192.168.4.33 also named Anastasia. The SSH alias `anastasia`
+> points to the DO droplet (174.138.44.45), NOT the Pi.
+
+---
+
+## 4. Unidentified Network Devices
+
+Four devices discovered on the LAN with no agent registry entry.
+
+| IP | MAC Address | OUI Vendor | Ping | Ports | Best Guess |
+|----|-------------|-----------|------|-------|------------|
+| 192.168.4.22 | 30:be:29:5b:24:5f | Unknown (possibly Hisense) | **UP** | No common ports open | Smart TV or IoT device |
+| 192.168.4.44 | 98:17:3c:38:db:78 | **TP-Link** | **UP** | No common ports open | WiFi extender or smart plug |
+| 192.168.4.83 | 54:4c:8a:9b:09:3d | Unknown (Shenzhen Bilian) | **UP** | No common ports open | Smart home WiFi module |
+| 192.168.4.92 | de:a2:b7:f3:f9:5d | Locally administered (Apple) | **DOWN** | — | Apple device with private WiFi MAC |
+
+> **ACTION:** Identify .22, .44, .83 by physical inspection or DHCP lease table on router.
+> Could be Calliope and Sophia from agent registry, plus a network accessory.
+
+---
+
+## 5. AI Accelerator Summary — Corrected
+
+| Accelerator | Node | Verified Method | TOPS | Status |
+|-------------|------|----------------|------|--------|
+| Hailo-8 M.2 | Cecilia | `/dev/hailo0` + `hailort.service` | 26 | **CONFIRMED active** |
+| Hailo-8 M.2 | Octavia | SSH probe: `HAILO: none` | 26 | **NOT INSTALLED** |
+| Hailo-8 M.2 | Aria | SSH probe: `HAILO: none` | 26 | **NOT INSTALLED** |
+| Jetson Orin Nano | Jetson-Agent | Not deployed | 40 | Pending |
+| Apple M1 NE | Alexandria | Known hardware | 15.8 | Active |
+| Ethos-U55 | SenseCAP W1-A | Returned | ~1 | Returned |
+
+### Corrected Compute Budget
+
+| Category | TOPS | Status |
+|----------|------|--------|
+| Hailo-8 (1x confirmed) | 26 | **Active** |
+| Apple M1 Neural Engine | 15.8 | Active |
+| **Total confirmed active** | **41.8** | |
+| Hailo-8 (2x uninstalled) | 52 | Available hardware, not installed |
+| Jetson Orin Nano | 40 | Pending setup |
+| **Total potential** | **~134** | If all installed |
+
+> **Where are the other 2 Hailo-8 modules?** They were purchased ($215 each) but
+> are not detected on Octavia or Aria. Check if they're physically seated in M.2
+> slots or sitting uninstalled. Serials: HLLWM2B233704667 (Cecilia), HLLWM2B233704606 (unknown).
+
+---
+
+## 6. Network — Live ARP Table
+
+Devices with confirmed MAC addresses as of 2026-02-21:
+
+| IP | MAC | OUI | Hostname | Status |
+|----|-----|-----|----------|--------|
+| 192.168.4.1 | 44:ac:85:94:37:92 | TP-Link | Router | **UP** |
+| 192.168.4.22 | 30:be:29:5b:24:5f | Unknown | **UNIDENTIFIED** | **UP** |
+| 192.168.4.26 | d4:be:dc:6c:61:6b | Roku | Iris | **UP** |
+| 192.168.4.27 | 6c:4a:85:32:ae:72 | Raspberry Pi 5 | Cordelia | **UP** (no SSH) |
+| 192.168.4.28 | b0:be:83:66:cc:10 | Apple | Alexandria (Mac) | **UP** |
+| 192.168.4.33 | 60:92:c8:11:cf:7c | Raspberry Pi 5 | Anastasia (Pi) | **UP** (no SSH) |
+| 192.168.4.38 | 2c:cf:67:cf:fa:17 | Raspberry Pi | Octavia | **UP** |
+| 192.168.4.44 | 98:17:3c:38:db:78 | TP-Link | **UNIDENTIFIED** | **UP** |
+| 192.168.4.45 | d0:c9:07:50:51:ca | Espressif | Athena (ESP32) | **UP** |
+| 192.168.4.49 | d8:3a:dd:ff:98:87 | Raspberry Pi | Alice | **UP** |
+| 192.168.4.81 | (incomplete) | — | Lucidia | **DOWN** |
+| 192.168.4.82 | 88:a2:9e:0d:42:07 | Raspberry Pi 5 | Aria | **UP** |
+| 192.168.4.83 | 54:4c:8a:9b:09:3d | Unknown | **UNIDENTIFIED** | **UP** |
+| 192.168.4.88 | 9e:0d:2a:82:99:96 | Private MAC | Phoebe (iPhone) | **DOWN** |
+| 192.168.4.89 | 88:a2:9e:3b:eb:72 | Raspberry Pi 5 | Cecilia | **UP** |
+| 192.168.4.90 | a0:4a:5e:2a:db:d2 | Microsoft | Ares (Xbox) | **DOWN** |
+| 192.168.4.92 | de:a2:b7:f3:f9:5d | Private MAC | **UNIDENTIFIED** | **DOWN** |
+
+### Stale Entry
+
+| IP | Note |
+|----|------|
+| 192.168.4.74 | In `/etc/hosts` as "octavia" — **stale**. Octavia is now at .38. Remove. |
+
+---
+
+## 7. Tailscale Mesh — Corrected
+
+| Node | Tailscale IP | SSH Alias | Verified |
+|------|-------------|-----------|----------|
+| Cecilia | 100.72.180.98 | cecilia-ts | SSH config |
+| Lucidia | **100.83.149.86** | lucidia-ts | SSH config (was wrongly documented as .66.235.47) |
+| Octavia | **100.66.235.47** | octavia-ts | SSH config + ss binding (was wrongly documented as .83.149.86) |
+| Aria | 100.109.14.17 | aria-ts | SSH config |
+| Alice | 100.77.210.18 | alice-ts | SSH config |
+| Codex-Infinity | 100.108.132.8 | gematria-ts | SSH config |
+| Shellfish | 100.94.33.37 | anastasia-ts / cadence-ts | SSH config |
+
+> **Note:** Tailscale daemon is NOT running on Alexandria (Mac). `tailscale status` returns "not running".
+
+---
+
+## 8. DNS — Cloudflare Proxied
+
+All `blackroad.io` DNS resolves to Cloudflare proxy IPs (not origin):
+
+| Subdomain | Resolves To | Type |
+|-----------|------------|------|
+| blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| www.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| api.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| status.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| docs.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| dashboard.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| agents.blackroad.io | 104.21.91.74 | Cloudflare proxy |
+| monitoring.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| tunnel-cecilia.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| tunnel-lucidia.blackroad.io | 104.21.91.74 | Cloudflare proxy |
+| tunnel-octavia.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+| tunnel-codex.blackroad.io | 104.21.91.74 | Cloudflare proxy |
+| tunnel-cadence.blackroad.io | 172.67.211.99 | Cloudflare proxy |
+
+All traffic routes: Client → Cloudflare CDN → Cloudflare Tunnel → Origin Node
+
+---
+
+## 9. SSH Configuration Truth Table
+
+From `~/.ssh/config` (hardened 2026-02-19):
+
+| Alias | HostName | User | Notes |
+|-------|----------|------|-------|
+| cecilia | 192.168.4.89 | blackroad | ed25519 key |
+| lucidia | 192.168.4.81 | blackroad | ed25519 key |
+| aria | 192.168.4.82 | blackroad | ed25519 key |
+| octavia | 192.168.4.38 | blackroad | ed25519 key |
+| alice | 192.168.4.49 | blackroad | ed25519 key |
+| anastasia | **174.138.44.45** | blackroad | **Points to DO droplet, NOT the Pi!** |
+| gematria | 159.65.43.12 | blackroad | Codex-Infinity droplet |
+| cadence | 174.138.44.45 | shellfish | Same host as anastasia alias |
+| olympia | pikvm.local | root | mDNS, not IP |
+| alexandria / mac | 192.168.4.28 | alexa | Local Mac |
+| lucidia-pi | 192.168.4.81 | pi | Legacy fallback user |
+| *-ts | 100.x.x.x | blackroad | Tailscale aliases |
+| *-root | DO IPs | root | Root access to droplets |
+
+### Missing SSH Entries
+
+- **Cordelia** (192.168.4.27) — no SSH config entry
+- **Anastasia Pi** (192.168.4.33) — alias `anastasia` points to DO droplet instead
+
+---
+
+## 10. Storage — Live Verified
+
+| Node | Device | Total | Used | Free | % | Verified |
+|------|--------|-------|------|------|---|----------|
+| Cecilia | /dev/nvme0n1p2 | 457GB | 65GB | 370GB | **15%** | SSH |
+| Octavia | /dev/mmcblk0p2 | 235GB | 76GB | 148GB | **34%** | SSH |
+| Aria | /dev/mmcblk0p2 | 29GB | 20GB | 7.3GB | **74%** | SSH |
+| Alice | /dev/root | 15GB | 9.6GB | 4.1GB | **71%** | SSH |
+| Shellfish | /dev/vda1 | 25GB | 15GB | 11GB | **57%** | SSH |
+| Lucidia | — | — | — | — | — | DOWN |
+| Anastasia Pi | — | — | — | — | — | No SSH |
+| Cordelia | — | — | — | — | — | No SSH |
+
+### Storage Alerts
+
+| Priority | Node | Issue |
+|----------|------|-------|
+| High | Aria | 74% used, only 7.3GB free on 29GB card |
+| Medium | Alice | 71% used, only 4.1GB free on 15GB root |
+| Monitor | Shellfish | 57% used |
+| OK | Cecilia | 15% used — healthiest node |
+| OK | Octavia | 34% used — cleaned up from prior 90% |
+
+---
+
+## 11. OS Version Matrix
+
+| Node | Distribution | Version | Kernel | Architecture |
+|------|-------------|---------|--------|-------------|
+| Cecilia | Debian | **13 (Trixie)** | 6.12.62+rpt-rpi-2712 | aarch64 |
+| Octavia | Debian | 12 (Bookworm) | 6.12.62+rpt-rpi-2712 | aarch64 |
+| Aria | Debian | 12 (Bookworm) | 6.12.62+rpt-rpi-2712 | aarch64 |
+| Alice | **Raspbian** | **11 (Bullseye)** | **6.1.21-v8+** | aarch64 |
+| Shellfish | **CentOS Stream** | **9** | 5.14.0-651.el9.x86_64 | x86_64 |
+| Codex-Infinity | Unknown | — | — | x86_64 (DO-Premium-AMD) |
+| Lucidia | (down) | — | — | — |
+| Anastasia Pi | (no SSH) | — | — | — |
+| Cordelia | (no SSH) | — | — | — |
+
+> **Note:** The fleet is NOT uniform. Three different OS families and kernels in play.
+
+---
+
+## 12. Action Items
+
+### Critical
+
+1. **Investigate Lucidia** — Node is down. Check power, SD card, Ethernet. NATS bus may be affected.
+2. **Locate 2 Hailo-8 modules** — Purchased but not detected on Octavia or Aria. Physical check needed.
+3. **Fix Anastasia naming collision** — DO droplet hostname "anastasia" collides with Pi at .33. Rename droplet to "shellfish" or "cadence".
+
+### High
+
+4. **Enable SSH on Anastasia Pi** (.33) — Port 22 closed. Needs keyboard access to `sudo systemctl enable ssh`.
+5. **Enable SSH on Cordelia** (.27) — Same issue.
+6. **Add Cordelia to SSH config** — No entry exists.
+7. **Fix SSH config** — `anastasia` alias should point to Pi (.33), not DO droplet.
+8. **Reduce Octavia load** — Load avg 9.47 on 4-core, 6.6/7.9GB RAM. Migrate services.
+
+### Medium
+
+9. **Identify unknown devices** — .22, .44, .83 on the network. Check router DHCP leases.
+10. **Clean up Aria storage** — 74% used, 7.3GB free.
+11. **Remove stale /etc/hosts** — `192.168.4.74 octavia` is wrong (now .38).
+12. **Upgrade Alice OS** — Bullseye (11) is EOL. Upgrade to Bookworm (12).
+13. **Install Tailscale on Mac** — `tailscale status` shows "not running" on Alexandria.
+14. **Add Anastasia + Cordelia to Tailscale** — Not in mesh yet.
+15. **Correct agent registry** — Octavia and Aria listed as `pironman_hailo8` but have no Hailo.
+16. **Fix `~/blackroad-fleet.yaml`** — Lucidia/Octavia IPs are swapped (both local and Tailscale).
+
+---
+
+## Appendix: Data Sources
+
+| Source | Method | Trust Level |
+|--------|--------|-------------|
+| SSH probe (system info) | `ssh <host> "hostname; uname -r; ..."` | **Highest** — live system state |
+| ARP table | `arp -a` | **High** — recent MAC-to-IP mappings |
+| Ping sweep | `ping -c 1 -W 1` | **High** — reachability |
+| Port scan | `ss -tlnp` via SSH | **Highest** — actual listening services |
+| `~/.ssh/config` | File read | **High** — operational SSH aliases |
+| DNS dig | `dig +short` | **High** — current DNS state |
+| Agent registry DB | SQLite query | **Medium** — may be stale |
+| `~/blackroad-fleet.yaml` | File read | **Low** — contains known errors (IPs swapped) |
+| Prior documentation | Various .md files | **Low** — multiple inaccuracies found |

@@ -1,34 +1,75 @@
-# AI Compute Accelerators
+# AI Compute Accelerators — Live Verified
 
-Total fleet AI compute: **~135 TOPS** across Hailo-8, NVIDIA Jetson, Apple M1, and Arm Ethos-U55.
+**Verified via SSH probes on 2026-02-21.**
+
+> **CRITICAL CORRECTION:** Only **1 of 3** Hailo-8 modules is confirmed active.
+> Prior documentation claimed 3 active Hailo-8 units (78 TOPS). Live probes confirm
+> only Cecilia has a working Hailo-8. Octavia and Aria both report no Hailo device.
+
+**Confirmed fleet AI compute: ~41.8 TOPS active** (not 135 TOPS as previously documented)
 
 ---
 
 ## Accelerator Inventory
 
-| # | Accelerator | Node | Architecture | TOPS | Interface | Serial | Status |
-|---|-------------|------|-------------|------|-----------|--------|--------|
-| 1 | Hailo-8 M.2 | Cecilia | Hailo-8 | 26 | M.2 PCIe | HLLWM2B233704667 | Active |
-| 2 | Hailo-8 M.2 | Octavia | Hailo-8 | 26 | M.2 PCIe | HLLWM2B233704606 | Active |
-| 3 | Hailo-8 M.2 | Aria | Hailo-8 | 26 | M.2 PCIe | — | Active |
-| 4 | Jetson Orin Nano GPU | Jetson-Agent | NVIDIA Ampere | 40 | Onboard | — | Pending |
-| 5 | Apple M1 Neural Engine | Alexandria | Apple NE | 15.8 | Onboard | — | Active |
-| 6 | Himax Ethos-U55 NPU | SenseCAP W1-A | Arm Ethos-U55 | ~1 | Onboard | — | Returned |
+| # | Accelerator | Node | TOPS | Interface | Status | Verification |
+|---|-------------|------|------|-----------|--------|-------------|
+| 1 | Hailo-8 M.2 | Cecilia | 26 | M.2 PCIe | **Active** | `hailort.service` running, `/dev/hailo0` present |
+| 2 | Hailo-8 M.2 | Octavia | 26 | M.2 PCIe | **NOT DETECTED** | No `/dev/hailo*`, no `hailort.service` |
+| 3 | Hailo-8 M.2 | Aria | 26 | M.2 PCIe | **NOT DETECTED** | No `/dev/hailo*`, no `hailort.service` |
+| 4 | Jetson Orin Nano GPU | Jetson-Agent | 40 | Onboard | **Pending** | Dev kit not deployed |
+| 5 | Apple M1 Neural Engine | Alexandria | 15.8 | Onboard | **Active** | Mac in use daily |
+| 6 | Himax Ethos-U55 NPU | SenseCAP W1-A | ~1 | Onboard | **Returned** | Returned Aug 2025 |
 
-### Compute Budget
+### Compute Budget — Corrected
 
-| Category | TOPS | Status |
-|----------|------|--------|
-| Hailo-8 (3x) | 78 | Active |
-| NVIDIA Jetson Orin Nano | 40 | Pending setup |
-| Apple M1 Neural Engine | 15.8 | Active |
-| Arm Ethos-U55 | ~1 | Returned |
-| **Total Active** | **93.8** | |
-| **Total (incl. pending)** | **~135** | |
+| Category | TOPS | Status | Notes |
+|----------|------|--------|-------|
+| Hailo-8 (1x confirmed) | 26 | **Active** | Cecilia only |
+| Hailo-8 (2x unverified) | 52 | **Unknown** | Purchased but not detected on Octavia/Aria |
+| NVIDIA Jetson Orin Nano | 40 | **Pending** | Dev kit not deployed |
+| Apple M1 Neural Engine | 15.8 | **Active** | Alexandria Mac |
+| Arm Ethos-U55 | ~1 | **Returned** | SenseCAP Watcher |
+| **Confirmed Active** | **41.8** | | Hailo-8 (Cecilia) + M1 |
+| **Potential (if all working)** | **~135** | | Requires physical verification |
 
 ---
 
-## Hailo-8 M.2 Modules (3 units)
+## Missing Hailo-8 Investigation
+
+3 Hailo-8 M.2 modules were purchased (serial numbers documented: HLLWM2B233704667, HLLWM2B233704606, third unknown). Only 1 is confirmed active on Cecilia.
+
+### Possible Explanations
+
+1. **Not physically installed** — M.2 modules may still be in packaging or stored separately
+2. **Installed but no drivers** — HailoRT runtime not installed on Octavia/Aria
+3. **Hardware fault** — M.2 slot or module not functioning
+4. **Wrong slot** — Pironman case M.2 slot may be configured for NVMe, not AI accelerator
+
+### Verification Steps
+
+```bash
+# On Octavia (ssh octavia):
+ls /dev/hailo*                    # Check for Hailo device nodes
+systemctl status hailort          # Check for Hailo runtime service
+lspci | grep -i hailo             # Check PCIe bus for Hailo device
+dpkg -l | grep hailo              # Check if HailoRT packages installed
+
+# On Aria (ssh aria):
+ls /dev/hailo*
+systemctl status hailort
+lspci | grep -i hailo
+dpkg -l | grep hailo
+
+# Physical inspection required:
+# 1. Open Pironman cases on Octavia and Aria
+# 2. Check M.2 Key M slot — is a Hailo-8 card present?
+# 3. If present, install HailoRT: sudo apt install hailort
+```
+
+---
+
+## Hailo-8 M.2 Module
 
 ### Specifications
 
@@ -38,7 +79,7 @@ Total fleet AI compute: **~135 TOPS** across Hailo-8, NVIDIA Jetson, Apple M1, a
 | Compute | 26 TOPS (INT8) |
 | Interface | M.2 Key M (PCIe Gen 3.0 x1) |
 | Power | ~2.5W typical |
-| Price | $214.99 each |
+| Price | $214.99 each (3x = $644.97 total) |
 | Compatible Hosts | Raspberry Pi 5 (via HAT), Pironman case |
 
 ### Software Stack
@@ -70,7 +111,7 @@ dpkg -l | grep hailo
 ~/hailo.sh
 ```
 
-### Benchmark Results
+### Benchmark Results (Cecilia only)
 
 Hailo-8 vs NVIDIA Jetson benchmarks (from BlackRoad testing):
 - **Power Efficiency:** 15-30x more efficient than NVIDIA Jetson (TOPS/Watt)
@@ -90,6 +131,22 @@ Hailo-8 vs NVIDIA Jetson benchmarks (from BlackRoad testing):
 
 ---
 
+## Ollama Deployment (4 nodes)
+
+Ollama runs on 4 of 6 reachable nodes, providing LLM inference across the fleet:
+
+| Node | Binding | Security | Status |
+|------|---------|----------|--------|
+| Cecilia | 127.0.0.1:11434 | Localhost only | **Secure** |
+| Octavia | 127.0.0.1:11434 | Localhost only | **Secure** |
+| Shellfish | 100.64.0.1:11434 | Tailscale interface | **Secure** |
+| Codex-Infinity | **0.0.0.0:11434** | **ALL INTERFACES** | **INSECURE** |
+
+> **ACTION:** Fix Codex-Infinity Ollama binding immediately. Public IP 159.65.43.12:11434 is
+> accessible to anyone on the internet.
+
+---
+
 ## NVIDIA Jetson Orin Nano
 
 ### Specifications
@@ -104,6 +161,7 @@ Hailo-8 vs NVIDIA Jetson benchmarks (from BlackRoad testing):
 | Power | 7-15W configurable TDP |
 | Price | $114.29 (base dev kit) |
 | Display | HDMI + DisplayPort |
+| Status | **Pending initial setup** |
 
 ### Software Stack
 
@@ -122,15 +180,9 @@ Hailo-8 vs NVIDIA Jetson benchmarks (from BlackRoad testing):
 | Image generation | Stable Diffusion | Small models only (8GB RAM) |
 | Video analytics | DeepStream | Multi-stream pipeline |
 
-### Status
-
-Pending initial setup. Dev kit available with 10.1" ROADOM touchscreen.
-
 ---
 
 ## Apple M1 Neural Engine
-
-### Specifications
 
 | Spec | Value |
 |------|-------|
@@ -138,21 +190,11 @@ Pending initial setup. Dev kit available with 10.1" ROADOM touchscreen.
 | AI Compute | 15.8 TOPS |
 | Host | MacBook Pro M1 (Alexandria) |
 | Framework | CoreML, MLX |
-| Power | Integrated (shared power budget) |
-
-### Capabilities
-
-- CoreML model inference (Vision, NLP, Audio)
-- Ollama via Metal GPU acceleration
-- MLX framework for on-device ML
-- Whisper transcription
-- Stable Diffusion (via MLX)
+| Status | **Active** (daily use) |
 
 ---
 
 ## Arm Ethos-U55 NPU (SenseCAP Watcher — Returned)
-
-### Specifications
 
 | Spec | Value |
 |------|-------|
@@ -160,14 +202,18 @@ Pending initial setup. Dev kit available with 10.1" ROADOM touchscreen.
 | Host Processor | Arm Cortex-M55 (Himax HX6538) |
 | AI Compute | ~1 TOPS (INT8) |
 | Device | SenseCAP Watcher W1-A |
-| Status | Returned (August 2025) |
+| Status | **Returned** (August 2025) |
 
-### Capabilities (When Active)
+---
 
-- Person/animal/gesture detection via camera
-- Low-power always-on vision inference
-- Voice keyword detection
-- Designed for battery-powered edge AI
+## Power Efficiency Comparison
+
+| Accelerator | TOPS | Power (W) | TOPS/W | Status |
+|-------------|------|-----------|--------|--------|
+| Hailo-8 | 26 | 2.5 | **10.4** | 1 active, 2 unverified |
+| Jetson Orin Nano | 40 | 15 | 2.7 | Pending setup |
+| M1 Neural Engine | 15.8 | ~5 | 3.2 | Active |
+| Ethos-U55 | ~1 | 0.05 | 20.0 | Returned |
 
 ---
 
@@ -183,14 +229,3 @@ Pending initial setup. Dev kit available with 10.1" ROADOM touchscreen.
 | Whisper | — | Yes (CUDA) | Yes (Metal) | — |
 | Stable Diffusion | — | Yes (limited) | Yes (MLX) | — |
 | Person Detection | Yes | Yes | Yes | Yes |
-
----
-
-## Power Efficiency Comparison
-
-| Accelerator | TOPS | Power (W) | TOPS/W | Notes |
-|-------------|------|-----------|--------|-------|
-| Hailo-8 | 26 | 2.5 | **10.4** | Best efficiency |
-| Jetson Orin Nano | 40 | 15 | 2.7 | Most versatile |
-| M1 Neural Engine | 15.8 | ~5 | 3.2 | Integrated in laptop |
-| Ethos-U55 | ~1 | 0.05 | 20.0 | Ultra-low-power (returned) |

@@ -1,16 +1,19 @@
 # BlackRoad Fleet Registry — Machine-Readable Device Inventory
 # Source of truth for automation and tooling
-# Version: 2.0.0
-# Updated: 2026-02-20
+# Version: 2.1.0
+# Updated: 2026-02-21
+# Verified: Live SSH + ARP + ping probes
 
 fleet:
-  version: "2.0.0"
-  updated: "2026-02-20"
+  version: "2.1.0"
+  updated: "2026-02-21"
   owner: "BlackRoad OS, Inc."
   domain: "blackroad.io"
   tailnet: "blackroad"
   total_devices: 21
-  total_ai_tops: 135
+  unidentified_devices: 4
+  confirmed_ai_tops: 41.8  # 1x Hailo-8 (26) + M1 NE (15.8)
+  potential_ai_tops: 134    # If all accelerators installed
 
   tiers:
     production:
@@ -36,18 +39,21 @@ fleet:
     # ── Production Cluster ──────────────────────────────────────
     - name: cecilia
       tier: production
-      hardware: "Raspberry Pi 5"
-      ram: "8GB"
-      storage: "500GB NVMe (Crucial P310)"
+      hardware: "Raspberry Pi 5 Model B Rev 1.1"
+      ram: "8GB (3.3GB used, 4.6GB available)"
+      storage: "457GB NVMe (/dev/nvme0n1p2, 15% used)"
       case: "Standard"
       accelerator: "Hailo-8 M.2 26 TOPS"
       accelerator_serial: "HLLWM2B233704667"
+      accelerator_verified: true  # /dev/hailo0 detected
       cooling: "Active fan"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.89"
       ip_tailscale: "100.72.180.98"
-      os: "Debian 12 (Bookworm)"
-      kernel: "6.1 LTS"
+      mac: "88:a2:9e:3b:eb:72"
+      os: "Debian 13 (Trixie)"  # NOT Bookworm!
+      kernel: "6.12.62+rpt-rpi-2712"
+      ssh_user: "blackroad"
       roles:
         - primary_ai_host
         - orchestration
@@ -62,18 +68,21 @@ fleet:
 
     - name: octavia
       tier: production
-      hardware: "Raspberry Pi 5"
-      ram: "8GB"
-      storage: "235GB microSD (Samsung EVO Select)"
+      hardware: "Raspberry Pi 5 Model B Rev 1.1"
+      ram: "8GB (6.6GB used, 1.3GB available)"  # WARNING: memory pressure
+      storage: "235GB microSD (34% used, 76G/235G)"
       case: "Pironman"
-      accelerator: "Hailo-8 M.2 26 TOPS"
-      accelerator_serial: "HLLWM2B233704606"
+      accelerator: null  # HAILO NOT DETECTED despite registry
+      accelerator_verified: false
       cooling: "Pironman dual-fan tower"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.38"
-      ip_tailscale: "100.83.149.86"
+      ip_tailscale: "100.66.235.47"  # CORRECTED (was swapped with Lucidia)
+      mac: "2c:cf:67:cf:fa:17"
       os: "Debian 12 (Bookworm)"
-      kernel: "6.1 LTS"
+      kernel: "6.12.62+rpt-rpi-2712"
+      ssh_user: "blackroad"
+      load_average: "9.47"  # WARNING: overloaded
       roles:
         - ai_inference
         - auth
@@ -99,9 +108,12 @@ fleet:
       cooling: "ElectroCookie tower cooler"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.81"
-      ip_tailscale: "100.66.235.47"
-      os: "Debian 12 (Bookworm)"
-      kernel: "6.1 LTS"
+      ip_tailscale: "100.83.149.86"  # CORRECTED (was swapped with Octavia)
+      mac: null  # ARP incomplete — node is DOWN
+      os: "Debian 12 (Bookworm)"  # last known
+      kernel: "6.12.62+rpt-rpi-2712"  # last known
+      ssh_user: "blackroad"
+      status_override: "DOWN — unreachable via ping, ARP incomplete"
       roles:
         - nats_bus
         - llm_inference
@@ -116,17 +128,20 @@ fleet:
 
     - name: aria
       tier: production
-      hardware: "Raspberry Pi 5"
-      ram: "8GB"
-      storage: "29GB microSD (Samsung EVO Select)"
+      hardware: "Raspberry Pi 5 Model B Rev 1.1"
+      ram: "8GB (3.8GB used, 4.0GB available)"
+      storage: "29GB microSD (74% used, 7.3GB free)"  # WARNING: low space
       case: "Pironman"
-      accelerator: "Hailo-8 M.2 26 TOPS"
+      accelerator: null  # HAILO NOT DETECTED despite registry
+      accelerator_verified: false
       cooling: "Pironman dual-fan tower"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.82"
       ip_tailscale: "100.109.14.17"
+      mac: "88:a2:9e:0d:42:07"
       os: "Debian 12 (Bookworm)"
-      kernel: "6.1 LTS"
+      kernel: "6.12.62+rpt-rpi-2712"
+      ssh_user: "blackroad"
       roles:
         - api_services
         - compute
@@ -139,20 +154,22 @@ fleet:
       tier: production
       hardware: "Raspberry Pi 5"
       ram: "8GB"
-      storage: "NVMe (Crucial P310, Pironman)"
+      storage: "Unknown (SSH closed)"
       case: "Pironman"
       accelerator: null
       cooling: "Pironman dual-fan tower"
       psu: "Geekworm 27W 5V/5A USB-C"
       ip_local: "192.168.4.33"
       ip_tailscale: null
-      os: "Debian 12 (Bookworm)"
-      kernel: "6.1 LTS"
+      mac: "60:92:c8:11:cf:7c"  # Confirmed Raspberry Pi 5
+      os: "Unknown (SSH closed)"
+      ssh_user: "blackroad"
+      ssh_note: "WARNING: SSH alias 'anastasia' points to DO droplet, NOT this Pi"
       roles:
         - ai_inference_secondary
       services: []
-      ssh: "ssh anastasia"
-      status: active
+      ssh: "ssh blackroad@192.168.4.33"  # Direct IP needed, alias is wrong
+      status: ssh_closed  # Ping responds but port 22 refused
 
     - name: cordelia
       tier: production
@@ -175,17 +192,20 @@ fleet:
 
     - name: alice
       tier: production
-      hardware: "Raspberry Pi 400"
-      ram: "4GB"
-      storage: "32GB microSD"
+      hardware: "Raspberry Pi 400 Rev 1.0"
+      ram: "4GB (579MB used, 3.1GB available)"
+      storage: "15GB root (71% used, 4.1GB free)"  # NOT 32GB
       case: "Built-in keyboard"
       accelerator: null
       cooling: "Passive (built-in)"
       psu: "5V/3A USB-C (15W)"
       ip_local: "192.168.4.49"
       ip_tailscale: "100.77.210.18"
-      os: "Debian 12 (Bookworm)"
-      kernel: "6.1 LTS"
+      mac: "d8:3a:dd:ff:98:87"
+      os: "Raspbian 11 (Bullseye)"  # NOT Bookworm — needs upgrade
+      kernel: "6.1.21-v8+"
+      ssh_user: "blackroad"
+      load_average: "6.17"  # High for 4 cores
       roles:
         - gateway
         - development
@@ -215,39 +235,57 @@ fleet:
     # ── Cloud Compute ───────────────────────────────────────────
     - name: codex-infinity
       tier: cloud
-      hardware: "DigitalOcean Droplet"
-      ram: "1GB"
-      storage: "78GB SSD"
+      actual_hostname: "gematria"
+      hardware: "DigitalOcean Droplet (DO-Premium-AMD)"
+      ram: "~765MB"
+      storage: "25GB+"
       ip_local: "159.65.43.12"
       ip_tailscale: "100.108.132.8"
-      os: "Debian 12 (Bookworm)"
-      kernel: "5.15 LTS"
+      os: "Debian/Ubuntu based"
+      ssh_user: "blackroad"
+      ssh_alias: "gematria"
       roles:
         - codex_server
         - oracle
       services:
-        - codex-db
-        - cloud-services
+        - ollama (port 11434, public)
+        - nginx (80, 443)
+        - cloudflared
+        - caddy (2019 admin)
+        - python-app (8787, 8011)
       tunnel: "tunnel-codex.blackroad.io"
       status: active
+      uptime: "55+ days"
 
     - name: shellfish
       tier: cloud
-      hardware: "DigitalOcean Droplet"
-      ram: "1GB"
-      storage: "25GB SSD"
+      actual_hostname: "anastasia"  # WARNING: name collision with Pi
+      hardware: "DigitalOcean Droplet (DO-Premium-AMD)"
+      ram: "765MB (408MB used)"
+      storage: "25GB SSD (57% used, 15G/25G)"
       ip_local: "174.138.44.45"
       ip_tailscale: "100.94.33.37"
-      os: "Debian 12 (Bookworm)"
-      kernel: "5.15 LTS"
+      os: "CentOS Stream 9"
+      kernel: "5.14.0-651.el9.x86_64"
+      ssh_user: "blackroad"
+      ssh_alias: "anastasia"  # WARNING: collides with Pi
+      ssh_alias_alt: "cadence"
       roles:
         - cloud_infrastructure
         - edge
       services:
-        - tunnels
-        - edge-agent
+        - ollama (port 11434, Tailscale only at 100.64.0.1)
+        - nginx (80)
+        - cloudflared
+        - docker
+        - uvicorn-api (8000)
+        - websocket (8765, 8766)
+        - redis-like (6379)
+        - grafana (3000, 3001)
+        - python-apps (8080, 8787, 8888)
       tunnel: "tunnel-cadence.blackroad.io"
       status: active
+      uptime: "55+ days"
 
     # ── Edge Compute ────────────────────────────────────────────
     - name: jetson-agent
@@ -361,6 +399,32 @@ fleet:
         Himax AI coprocessor. Standalone edge AI unit with camera + mic +
         speaker. Could be re-acquired for doorbell/monitor use case.
         Ethos-U55 NPU adds ~1 TOPS for vision inference.
+
+  # ── Unidentified LAN Devices ────────────────────────────────
+  unidentified:
+    - ip: "192.168.4.22"
+      mac: "30:be:29:5b:24:5f"
+      oui: "Unknown (possibly Hisense)"
+      ping: true
+      guess: "Smart TV or IoT device"
+
+    - ip: "192.168.4.44"
+      mac: "98:17:3c:38:db:78"
+      oui: "TP-Link"
+      ping: true
+      guess: "WiFi extender or smart plug"
+
+    - ip: "192.168.4.83"
+      mac: "54:4c:8a:9b:09:3d"
+      oui: "Unknown (Shenzhen Bilian)"
+      ping: true
+      guess: "Smart home WiFi module"
+
+    - ip: "192.168.4.92"
+      mac: "de:a2:b7:f3:f9:5d"
+      oui: "Locally administered (Apple device)"
+      ping: false
+      guess: "Apple device with private WiFi address"
 
   # ── MCU Array ───────────────────────────────────────────────
   microcontrollers:

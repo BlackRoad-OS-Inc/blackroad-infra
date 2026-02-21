@@ -4,10 +4,10 @@ name: Docker Lint
 on:
   push:
     branches: [main]
-    paths: ['docker/**']
+    paths: ['docker/**', '.hadolint.yaml']
   pull_request:
     branches: [main]
-    paths: ['docker/**']
+    paths: ['docker/**', '.hadolint.yaml']
 
 jobs:
   lint:

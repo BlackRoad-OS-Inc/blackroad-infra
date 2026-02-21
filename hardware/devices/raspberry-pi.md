@@ -10,9 +10,9 @@
 
 | Node | Board | RAM | Storage | Case | Accelerator | IP (Local) | IP (Tailscale) | Status |
 |------|-------|-----|---------|------|-------------|------------|----------------|--------|
-| Cecilia | Pi 5 | 8GB | 500GB NVMe (49% used) | Standard | **Hailo-8 26T** | 192.168.4.89 | 100.72.180.98 | **Active** |
-| Octavia | Pi 5 | 8GB | 29GB SD (60% used) | Pironman | None confirmed | 192.168.4.38 | 100.66.235.47 | **Active (OVERLOADED)** |
-| Lucidia | Pi 5 | 8GB | Unknown | ElectroCookie | Unknown | 192.168.4.81 | 100.83.149.86 | **DOWN** |
+| Cecilia | Pi 5 | 8GB | 500GB NVMe (15% used) | Standard | **Hailo-8 26T** | 192.168.4.89 | 100.72.180.98 | **Active** |
+| Lucidia | Pi 5 | 8GB | 119G SD + **1TB NVMe** (1% used) | Pironman | **Hailo-8 26T** | 192.168.4.81 | 100.83.149.86 | **Active** |
+| Octavia | Pi 5 | 8GB | 238GB SD (34% used) | Pironman | None confirmed | 192.168.4.38 | 100.66.235.47 | **Active** |
 | Aria | Pi 5 | 8GB | 29GB SD (74% used) | Pironman | None confirmed | 192.168.4.82 | 100.109.14.17 | **Active** |
 | Anastasia | Pi 5 | 8GB | Unknown | Pironman | Unknown | 192.168.4.33 | — | **SSH Closed** |
 | Cordelia | Pi 5 | 8GB | Unknown | Standard | Unknown | 192.168.4.27 | — | **SSH Closed** |
@@ -25,6 +25,9 @@
 |------|----------------------|---------------|
 | Octavia Tailscale IP | 100.83.149.86 | **100.66.235.47** |
 | Lucidia Tailscale IP | 100.66.235.47 | **100.83.149.86** |
+| Lucidia status | DOWN | **BACK ONLINE** (has 1TB NVMe + Hailo-8 + NATS) |
+| Lucidia /etc/hostname | "lucidia" | **"octavia"** (wrong, needs fixing) |
+| Hailo-8 count | 1 (Cecilia only) | **2 confirmed** (Cecilia + Lucidia) |
 | Hailo-8 on Octavia | Active (26 TOPS) | **Not detected** (no `/dev/hailo*`, no `hailort.service`) |
 | Hailo-8 on Aria | Active (26 TOPS) | **Not detected** (no `/dev/hailo*`, no `hailort.service`) |
 | SSH user | `alexandria` | **`blackroad`** |

@@ -10,7 +10,7 @@
 | Fleet Version | 2.1.0 |
 | Verified | Live SSH + ARP + ping sweep |
 | Total Devices | 21 registered + 4 unidentified |
-| Confirmed AI Compute | 26 TOPS (1x Hailo-8 verified) |
+| Confirmed AI Compute | 52 TOPS (2x Hailo-8 verified: Cecilia + Lucidia) |
 | Network | 192.168.4.0/24 LAN + 7-node Tailscale mesh |
 
 ---
@@ -25,7 +25,9 @@
 | Hailo-8 count | 3 units (Cecilia, Octavia, Aria) | **1 confirmed** (Cecilia only). Octavia/Aria report `HAILO: none` |
 | Lucidia Tailscale IP | 100.66.235.47 | **100.83.149.86** (SSH config + live binding) |
 | Octavia Tailscale IP | 100.83.149.86 | **100.66.235.47** (SSH config + live binding) |
-| Lucidia status | Active | **DOWN** (unreachable via ping, ARP incomplete) |
+| Lucidia status | Active → DOWN → **BACK UP** | Was down during initial scan, came back online. Has 1TB NVMe + Hailo-8 + NATS |
+| Lucidia hostname | "lucidia" | **/etc/hostname says "octavia"** — identity mismatch, needs fixing |
+| Hailo-8 count | 1 confirmed (Cecilia only) | **2 confirmed**: Cecilia + Lucidia (hailort.service running on both) |
 | Cecilia OS | Debian 12 Bookworm | **Debian 13 Trixie**, kernel 6.12.62 |
 | Alice OS | Debian 12 Bookworm | **Raspbian 11 Bullseye**, kernel 6.1.21 |
 | Alice storage | 32GB SD | **15GB root partition** (71% used) |
@@ -45,7 +47,7 @@
 |---|------|------|----------|------------|----------------|-------------|--------|----------|
 | 1 | Cecilia | Pi 5 | 8GB, Hailo-8, 457GB NVMe | 192.168.4.89 | 100.72.180.98 | **Hailo-8 26 TOPS** (confirmed /dev/hailo0) | **UP** | SSH |
 | 2 | Octavia | Pi 5 | 8GB, Pironman, 235GB SD | 192.168.4.38 | 100.66.235.47 | **None** (HAILO: none) | **UP** | SSH |
-| 3 | Lucidia | Pi 5 | 8GB, ElectroCookie | 192.168.4.81 | 100.83.149.86 | — | **DOWN** | Ping fail |
+| 3 | Lucidia | Pi 5 | 8GB, Pironman, **1TB NVMe**, 119G SD | 192.168.4.81 | 100.83.149.86 | **Hailo-8** (hailort running) | **UP** | SSH |
 | 4 | Aria | Pi 5 | 8GB, 29GB SD | 192.168.4.82 | 100.109.14.17 | **None** (HAILO: none) | **UP** | SSH |
 | 5 | Anastasia | Pi 5 | 8GB | 192.168.4.33 | — | — | **SSH closed** | ARP + ping |
 | 6 | Cordelia | Pi 5 | 8GB | 192.168.4.27 | — | — | **SSH closed** | ARP + ping |
@@ -128,8 +130,8 @@
 | IP Tailscale | **100.66.235.47** |
 | MAC | 2c:cf:67:cf:fa:17 |
 | Hailo-8 | **NONE** |
-| Uptime | 2 days, 8h 40m |
-| Load | **9.47**, 9.82, 10.52 (VERY HIGH) |
+| Uptime | 12 min (rebooted, xmrig+finetune processes cleared) |
+| Load | 0.86, 0.78, 0.72 (healthy after reboot) |
 | SSH | `ssh octavia` (user: blackroad) |
 
 **Services (systemd):**
@@ -156,8 +158,8 @@
 | 11434 | Ollama | 127.0.0.1 |
 | 34001 | Tailscale relay | 0.0.0.0 |
 
-> **WARNING:** Load average 9.47 on a 4-core Pi 5. This node is overloaded.
-> RAM 6.6/7.9GB. Consider migrating services.
+> **Cleaned 2026-02-21:** xmrig miner killed, apple-finetune processes cleared after reboot.
+> Load dropped from 9.47 to 0.86. Monitor for process respawns.
 
 ---
 
@@ -221,19 +223,58 @@
 
 ---
 
-### Lucidia — DOWN
+### Lucidia — BACK ONLINE (VERIFIED 2026-02-21)
+
+> **HOSTNAME BUG:** `/etc/hostname` on this machine says "octavia", but it IS Lucidia
+> by hardware serial (a91e903b3e7bfcc4), IP, and physical presence (1TB NVMe + Hailo-8).
 
 | Field | Value |
 |-------|-------|
-| Board | Raspberry Pi 5 (per registry) |
+| Board | Raspberry Pi 5 Model B Rev 1.1 |
+| Serial | a91e903b3e7bfcc4 |
+| OS | **Debian 13 (Trixie)** |
+| Kernel | 6.12.62+rpt-rpi-2712 |
+| RAM | 8GB total |
+| Storage (root) | /dev/mmcblk0p2 **119G**, 53GB used (**47%**), 60G free |
+| Storage (NVMe) | /dev/nvme0n1p1 **916G**, 1.8GB used (**1%**), **868G free** |
 | IP Local | 192.168.4.81 |
 | IP Tailscale | 100.83.149.86 |
-| MAC | **Not in ARP** (incomplete) |
-| Status | **UNREACHABLE** — ping fails, ARP incomplete |
-| Last Known | NATS bus, Ollama, edge-agent |
+| MAC | 88:a2:9e:10:a3:a (from IPv6 SLAAC) |
+| Hailo-8 | **hailort.service RUNNING** |
+| Uptime | 16 min (recently rebooted) |
+| Load | 0.15, 0.33, 0.33 |
+| SSH | `ssh lucidia` (user: blackroad) |
 
-> **ACTION REQUIRED:** Lucidia is down. Check power supply, SD card, network cable.
-> This is the NATS event bus node — its absence may affect inter-node messaging.
+**Services (systemd):**
+- `hailort.service` — HailoRT AI runtime (**2nd Hailo-8 in fleet!**)
+- `ollama.service` — LLM inference (port 11434, localhost only)
+- `cloudflared.service` — Cloudflare tunnel
+- `docker.service` — Container runtime
+- `influxdb.service` — Time series DB
+- `pironman5.service` — Case controller
+- `tailscaled.service` — Mesh VPN
+
+**Listening Ports:**
+
+| Port | Service | Bind |
+|------|---------|------|
+| 22 | SSH | 0.0.0.0 |
+| 80 | PowerDNS Admin | 0.0.0.0 |
+| 3000 | Python app | 0.0.0.0 |
+| 4222 | **NATS** | 0.0.0.0 |
+| 5000 | App service | 0.0.0.0 |
+| 8080 | HTTP service | 0.0.0.0 |
+| 8082 | HTTP service | 0.0.0.0 |
+| 8088 | InfluxDB | 127.0.0.1 |
+| 8222 | NATS monitoring | 0.0.0.0 |
+| 8787 | Python app | 0.0.0.0 |
+| 9100 | Node Exporter | 0.0.0.0 |
+| 11434 | Ollama | 127.0.0.1 |
+| 34001 | Tailscale relay | 0.0.0.0 |
+
+> **This is the NATS event bus node** (ports 4222/8222) — critical for inter-node messaging.
+> **Healthiest storage in fleet:** 868G free on NVMe. Use for offloading from Alexandria.
+> **No xmrig found** — this node was never compromised.
 
 ---
 

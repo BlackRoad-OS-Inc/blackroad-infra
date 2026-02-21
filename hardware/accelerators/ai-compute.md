@@ -2,11 +2,11 @@
 
 **Verified via SSH probes on 2026-02-21.**
 
-> **CRITICAL CORRECTION:** Only **1 of 3** Hailo-8 modules is confirmed active.
-> Prior documentation claimed 3 active Hailo-8 units (78 TOPS). Live probes confirm
-> only Cecilia has a working Hailo-8. Octavia and Aria both report no Hailo device.
+> **UPDATE 2026-02-21:** Lucidia came back online and has a **second Hailo-8** confirmed!
+> `hailort.service` running on both Cecilia and Lucidia. Octavia and Aria have no Hailo.
+> 1 of 3 purchased modules remains unaccounted for.
 
-**Confirmed fleet AI compute: ~41.8 TOPS active** (not 135 TOPS as previously documented)
+**Confirmed fleet AI compute: ~67.8 TOPS active** (2x Hailo-8 + M1 Neural Engine)
 
 ---
 
@@ -15,8 +15,9 @@
 | # | Accelerator | Node | TOPS | Interface | Status | Verification |
 |---|-------------|------|------|-----------|--------|-------------|
 | 1 | Hailo-8 M.2 | Cecilia | 26 | M.2 PCIe | **Active** | `hailort.service` running, `/dev/hailo0` present |
-| 2 | Hailo-8 M.2 | Octavia | 26 | M.2 PCIe | **NOT DETECTED** | No `/dev/hailo*`, no `hailort.service` |
-| 3 | Hailo-8 M.2 | Aria | 26 | M.2 PCIe | **NOT DETECTED** | No `/dev/hailo*`, no `hailort.service` |
+| 2 | Hailo-8 M.2 | Lucidia | 26 | M.2 PCIe | **Active** | `hailort.service` running (confirmed 2026-02-21) |
+| 3 | Hailo-8 M.2 | Octavia | 26 | M.2 PCIe | **NOT DETECTED** | No `/dev/hailo*`, no `hailort.service` |
+| — | Hailo-8 M.2 | Aria | — | M.2 PCIe | **NOT DETECTED** | No `/dev/hailo*`, no `hailort.service` |
 | 4 | Jetson Orin Nano GPU | Jetson-Agent | 40 | Onboard | **Pending** | Dev kit not deployed |
 | 5 | Apple M1 Neural Engine | Alexandria | 15.8 | Onboard | **Active** | Mac in use daily |
 | 6 | Himax Ethos-U55 NPU | SenseCAP W1-A | ~1 | Onboard | **Returned** | Returned Aug 2025 |
@@ -25,19 +26,19 @@
 
 | Category | TOPS | Status | Notes |
 |----------|------|--------|-------|
-| Hailo-8 (1x confirmed) | 26 | **Active** | Cecilia only |
-| Hailo-8 (2x unverified) | 52 | **Unknown** | Purchased but not detected on Octavia/Aria |
+| Hailo-8 (2x confirmed) | 52 | **Active** | Cecilia + Lucidia |
+| Hailo-8 (1x unverified) | 26 | **Unknown** | 3rd module purchased, not detected on Octavia or Aria |
 | NVIDIA Jetson Orin Nano | 40 | **Pending** | Dev kit not deployed |
 | Apple M1 Neural Engine | 15.8 | **Active** | Alexandria Mac |
 | Arm Ethos-U55 | ~1 | **Returned** | SenseCAP Watcher |
-| **Confirmed Active** | **41.8** | | Hailo-8 (Cecilia) + M1 |
-| **Potential (if all working)** | **~135** | | Requires physical verification |
+| **Confirmed Active** | **67.8** | | 2x Hailo-8 + M1 |
+| **Potential (if all working)** | **~135** | | +1 Hailo-8 + Jetson |
 
 ---
 
 ## Missing Hailo-8 Investigation
 
-3 Hailo-8 M.2 modules were purchased (serial numbers documented: HLLWM2B233704667, HLLWM2B233704606, third unknown). Only 1 is confirmed active on Cecilia.
+3 Hailo-8 M.2 modules were purchased (serial numbers documented: HLLWM2B233704667, HLLWM2B233704606, third unknown). 2 are confirmed active: Cecilia and Lucidia. 1 remains unaccounted for.
 
 ### Possible Explanations
 

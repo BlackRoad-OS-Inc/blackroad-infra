@@ -1,8 +1,12 @@
 import type { Metadata } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME || 'BlackRoad Service',
-  description: 'BlackRoad infrastructure service',
+  title: 'BlackRoad Infrastructure',
+  description: 'Deployment automation, CI/CD workflows, Terraform modules, and infrastructure-as-code for the BlackRoad OS distributed network.',
+  icons: {
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🛤️</text></svg>',
+  },
 }
 
 export default function RootLayout({
@@ -12,12 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{
-        margin: 0,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        backgroundColor: '#0a0a0a',
-        color: '#e0e0e0'
-      }}>
+      <body>
         {children}
       </body>
     </html>

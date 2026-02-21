@@ -10,38 +10,40 @@ interface CardProps {
   hoverable?: boolean
 }
 
-export function Card({ 
-  children, 
-  variant = 'default', 
-  gradient, 
-  style, 
+export function Card({
+  children,
+  variant = 'default',
+  gradient,
+  style,
   onClick,
   hoverable = false
 }: CardProps) {
   const baseStyles: CSSProperties = {
-    padding: '2rem',
-    borderRadius: borderRadius.xl,
+    padding: '21px',
+    borderRadius: borderRadius.lg,
     transition: transitions.normal,
     cursor: onClick ? 'pointer' : 'default'
   }
 
   const variantStyles: Record<string, CSSProperties> = {
     default: {
-      backgroundColor: '#ffffff',
+      backgroundColor: '#111',
+      border: '1px solid #222',
       boxShadow: shadows.md,
     },
     elevated: {
-      backgroundColor: '#ffffff',
-      boxShadow: shadows['2xl'],
+      backgroundColor: '#111',
+      border: '1px solid #222',
+      boxShadow: shadows.xl,
     },
     outlined: {
       backgroundColor: 'transparent',
-      border: '1px solid #e0e0e0',
+      border: '1px solid #333',
     },
     glass: {
-      background: 'rgba(255, 255, 255, 0.1)',
+      background: 'rgba(255, 255, 255, 0.05)',
       backdropFilter: 'blur(10px)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
     }
   }
 
@@ -53,19 +55,19 @@ export function Card({
   }
 
   return (
-    <div 
+    <div
       style={cardStyles}
       onClick={onClick}
       onMouseEnter={(e) => {
         if (hoverable || onClick) {
           e.currentTarget.style.transform = 'translateY(-4px)'
-          e.currentTarget.style.boxShadow = shadows['2xl']
+          e.currentTarget.style.boxShadow = shadows.xl
         }
       }}
       onMouseLeave={(e) => {
         if (hoverable || onClick) {
           e.currentTarget.style.transform = 'translateY(0)'
-          e.currentTarget.style.boxShadow = variant === 'elevated' ? shadows['2xl'] : shadows.md
+          e.currentTarget.style.boxShadow = variant === 'elevated' ? shadows.xl : shadows.md
         }
       }}
     >

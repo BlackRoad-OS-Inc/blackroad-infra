@@ -48,24 +48,24 @@ const getButtonStyles = (variant: ButtonVariant, size: ButtonSize, disabled: boo
 
   const variantStyles: Record<ButtonVariant, CSSProperties> = {
     primary: {
-      background: gradients.primary,
+      background: gradients.brand,
       color: 'white',
-      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+      boxShadow: '0 4px 15px rgba(255, 29, 108, 0.4)',
     },
     secondary: {
-      background: gradients.secondary,
+      background: gradients.pinkToViolet,
       color: 'white',
-      boxShadow: '0 4px 15px rgba(240, 147, 251, 0.4)',
+      boxShadow: '0 4px 15px rgba(156, 39, 176, 0.4)',
     },
     tertiary: {
-      background: gradients.tertiary,
+      background: gradients.blueToViolet,
       color: 'white',
-      boxShadow: '0 4px 15px rgba(79, 172, 254, 0.4)',
+      boxShadow: '0 4px 15px rgba(41, 121, 255, 0.4)',
     },
     ghost: {
       background: 'transparent',
-      color: colors.primary.purple,
-      border: `2px solid ${colors.primary.purple}`,
+      color: colors.brand.hotPink,
+      border: `2px solid ${colors.brand.hotPink}`,
     },
     danger: {
       background: colors.semantic.error,
@@ -77,32 +77,26 @@ const getButtonStyles = (variant: ButtonVariant, size: ButtonSize, disabled: boo
   return { ...baseStyles, ...sizeStyles[size], ...variantStyles[variant] }
 }
 
-export function Button({ 
-  children, 
-  variant = 'primary', 
-  size = 'md', 
-  disabled = false, 
-  onClick, 
+export function Button({
+  children,
+  variant = 'primary',
+  size = 'md',
+  disabled = false,
+  onClick,
   href,
-  style 
+  style
 }: ButtonProps) {
   const buttonStyles = getButtonStyles(variant, size, disabled)
-  const hoverStyles = !disabled ? {
-    ':hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: shadows['2xl']
-    }
-  } : {}
 
   if (href) {
     return (
-      <a 
-        href={href} 
+      <a
+        href={href}
         style={{ ...buttonStyles, ...style }}
         onMouseEnter={(e) => {
           if (!disabled) {
             e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = shadows['2xl']
+            e.currentTarget.style.boxShadow = shadows.xl
           }
         }}
         onMouseLeave={(e) => {
@@ -115,14 +109,14 @@ export function Button({
   }
 
   return (
-    <button 
+    <button
       onClick={onClick}
       disabled={disabled}
       style={{ ...buttonStyles, ...style }}
       onMouseEnter={(e) => {
         if (!disabled) {
           e.currentTarget.style.transform = 'translateY(-2px)'
-          e.currentTarget.style.boxShadow = shadows['2xl']
+          e.currentTarget.style.boxShadow = shadows.xl
         }
       }}
       onMouseLeave={(e) => {

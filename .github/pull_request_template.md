@@ -1,15 +1,23 @@
 ## Summary
-<!-- What does this PR change? -->
+<!-- What does this PR do? -->
 
 ## Type
-- [ ] Terraform module
-- [ ] Docker config
-- [ ] CI/CD workflow
-- [ ] Script
-- [ ] Documentation
+- [ ] 🚀 Feature
+- [ ] 🐛 Bug Fix
+- [ ] 🔧 Chore / Refactor
+- [ ] 📚 Documentation
+- [ ] 🔒 Security
+
+## Changes
+<!-- List key changes -->
+-
+
+## Testing
+- [ ] Unit tests pass
+- [ ] Manual testing done
+- [ ] No regressions
 
 ## Checklist
-- [ ] `terraform validate` passes (if applicable)
-- [ ] Docker builds successfully (if applicable)
+- [ ] CHANGELOG.md updated
 - [ ] No secrets committed
-- [ ] Documentation updated
+- [ ] CI passes

@@ -6,3 +6,7 @@
 .env
 *.pem
 *.key
+
+# Moved to appropriate repos
+hardware/
+mcp-bridge/

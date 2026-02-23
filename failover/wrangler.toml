@@ -1,0 +1,17 @@
+name = "blackroad-failover"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+account_id = "848cf0b18d51e0170e0d1537aec3505a"
+
+# KV namespace for health state (create with: wrangler kv:namespace create HEALTH)
+[[kv_namespaces]]
+binding = "HEALTH"
+id = "REPLACE_WITH_KV_ID"
+
+[triggers]
+# Health check cron — every 2 minutes
+crons = ["*/2 * * * *"]
+
+[vars]
+# Tier labels for logging
+TIER_NAMES = "Pi-Fleet,DigitalOcean,Vercel,CF-Pages,GitHub-Pages,Railway,Salesforce"

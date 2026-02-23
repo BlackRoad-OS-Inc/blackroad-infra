@@ -1,0 +1,142 @@
+name: Failover — Deploy All Tiers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'failover/**'
+      - 'nginx/**'
+  workflow_dispatch:
+  schedule:
+    # Re-deploy fallbacks weekly to keep them fresh
+    - cron: '0 6 * * 1'
+
+jobs:
+  # ── Tier 1+2: Nginx configs (via SSH) ──────────────────────
+  deploy-nginx:
+    name: Deploy nginx to Pi + Droplet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PI_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan 192.168.4.64 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan 159.65.43.12 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy nginx to Pi fleet (Tier 1)
+        run: bash failover/deploy-nginx-pi.sh
+        continue-on-error: true  # Don't fail pipeline if Pi unreachable from GH Actions
+
+      - name: Deploy nginx to DigitalOcean (Tier 2)
+        run: bash failover/deploy-do-mirror.sh
+        env:
+          DROPLET_HOST: 159.65.43.12
+        continue-on-error: true
+
+  # ── Tier 3: Vercel ──────────────────────────────────────────
+  deploy-vercel:
+    name: Deploy to Vercel (Tier 3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy static fallback to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FALLBACK }}
+          working-directory: failover/static-fallback
+          vercel-args: '--prod'
+
+  # ── Tier 4: Cloudflare Pages ────────────────────────────────
+  deploy-cf-pages:
+    name: Deploy to CF Pages (Tier 4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 848cf0b18d51e0170e0d1537aec3505a
+          projectName: blackroad-os-fallback
+          directory: failover/static-fallback
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Tier 5: GitHub Pages ────────────────────────────────────
+  deploy-gh-pages:
+    name: Deploy to GitHub Pages (Tier 5)
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: failover/static-fallback
+          destination_dir: .
+          commit_message: "chore: failover static build ${{ github.sha }}"
+
+  # ── Tier 6: Railway ─────────────────────────────────────────
+  deploy-railway:
+    name: Deploy to Railway (Tier 6)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: |
+          cd failover/static-fallback
+          railway up --service blackroad-fallback
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        continue-on-error: true
+
+  # ── CF Worker: Failover router ──────────────────────────────
+  deploy-failover-worker:
+    name: Deploy Failover Worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: failover
+          wranglerVersion: '3'
+
+  # ── Summary ─────────────────────────────────────────────────
+  summary:
+    name: Resilience Summary
+    runs-on: ubuntu-latest
+    needs: [deploy-vercel, deploy-cf-pages, deploy-gh-pages, deploy-failover-worker]
+    if: always()
+    steps:
+      - name: Print tier status
+        run: |
+          echo "## ⚡ BlackRoad Failover Tiers" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tier | Target | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1 | Pi Fleet (nginx + cloudflared) | ${{ needs.deploy-nginx.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 | DigitalOcean droplet (159.65.43.12) | ${{ needs.deploy-nginx.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3 | Vercel | ${{ needs.deploy-vercel.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4 | Cloudflare Pages | ${{ needs.deploy-cf-pages.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5 | GitHub Pages | ${{ needs.deploy-gh-pages.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 6 | Railway | ${{ needs.deploy-railway.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CF | Failover Worker | ${{ needs.deploy-failover-worker.result }} |" >> $GITHUB_STEP_SUMMARY

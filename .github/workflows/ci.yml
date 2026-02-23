@@ -9,7 +9,7 @@ on:
 jobs:
   shellcheck:
     name: ShellCheck
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, blackroad]
     steps:
       - uses: actions/checkout@v4
       - name: ShellCheck
@@ -20,7 +20,7 @@ jobs:
 
   terraform:
     name: Terraform Validate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, blackroad]
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
@@ -41,7 +41,7 @@ jobs:
 
   yaml-lint:
     name: YAML Lint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, blackroad]
     steps:
       - uses: actions/checkout@v4
       - name: Lint YAML files

@@ -1,0 +1,38 @@
+# BlackRoad Infrastructure — Ansible Inventory
+# Usage: ansible-playbook -i ansible/inventory.yaml ansible/pi-fleet.yaml
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    blackroad_home: /home/pi/blackroad
+    ollama_models:
+      - llama3.2
+      - qwen2.5:7b
+
+pi_fleet:
+  vars:
+    ansible_user: pi
+    ansible_ssh_private_key_file: ~/.ssh/blackroad_pi
+  hosts:
+    aria64:
+      ansible_host: 192.168.4.38
+      role: primary
+      agent_capacity: 22500
+      description: "Primary agent host — AI accelerator + NVMe"
+    blackroad-pi:
+      ansible_host: 192.168.4.64
+      role: tunnel
+      agent_capacity: 7500
+      description: "Secondary host — Cloudflare tunnel endpoint"
+    lucidia-alt:
+      ansible_host: 192.168.4.99
+      role: backup
+      agent_capacity: 1000
+      description: "Backup node"
+
+cloud:
+  hosts:
+    blackroad-infinity:
+      ansible_host: 159.65.43.12
+      ansible_user: root
+      description: "DigitalOcean droplet — gateway + agents"

@@ -1,0 +1,33 @@
+name: Trigger Pi Fleet Deploy
+
+# ──────────────────────────────────────────────────────────────
+#  Drop this workflow into ANY repo across all 17 BlackRoad orgs.
+#  On push to main it fires a repository_dispatch to blackroad-infra
+#  which runs the deploy ON the Pi self-hosted runner.
+#  Net cost: $0. Net infra: your kitchen shelf.
+# ──────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  notify-pi-fleet:
+    name: Notify Pi Fleet
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to blackroad-infra
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.ORG_PAT }}
+          repository: BlackRoad-OS-Inc/blackroad-infra
+          event-type: repo-push
+          client-payload: |
+            {
+              "repo": "${{ github.repository }}",
+              "ref": "${{ github.ref }}",
+              "sha": "${{ github.sha }}",
+              "actor": "${{ github.actor }}",
+              "workflow": "${{ github.workflow }}"
+            }

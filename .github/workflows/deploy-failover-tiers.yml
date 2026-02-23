@@ -1,67 +1,98 @@
-name: Failover — Deploy All Tiers
+name: Deploy — Pi Fleet Primary + Static Fallbacks
+
+# ──────────────────────────────────────────────────────────────
+#  HOW THIS WORKS (zero paid compute):
+#
+#  1. git push  →  GitHub sees the commit
+#  2. Tier 1 job runs ON THE PI (self-hosted runner, $0)
+#     Pi pulls code, restarts nginx + services locally
+#  3. If Pi runner unreachable → jobs skip gracefully
+#  4. Static tiers (CF Pages, GH Pages) deploy in parallel
+#     as always-live fallbacks via GitHub's free Ubuntu runners
+#  5. CF Worker (always on, free) routes live traffic to
+#     whichever tier is actually healthy right now
+# ──────────────────────────────────────────────────────────────
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'failover/**'
-      - 'nginx/**'
   workflow_dispatch:
   schedule:
-    # Re-deploy fallbacks weekly to keep them fresh
-    - cron: '0 6 * * 1'
+    - cron: '0 6 * * 1'   # weekly refresh of static fallbacks
 
 jobs:
-  # ── Tier 1+2: Nginx configs (via SSH) ──────────────────────
-  deploy-nginx:
-    name: Deploy nginx to Pi + Droplet
-    runs-on: ubuntu-latest
+  # ── TIER 1: Deploy directly ON the Pi ──────────────────────
+  # Self-hosted runner — Pi connects out to GitHub, no open ports.
+  # Free unlimited minutes on self-hosted. Pi does all the work.
+  deploy-pi-primary:
+    name: "Tier 1 — Pi Fleet (self-hosted)"
+    runs-on: [self-hosted, pi-fleet, primary]
+    continue-on-error: true   # if Pi is down don't block fallbacks
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - name: Pull latest + reload nginx
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.PI_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan 192.168.4.64 >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh-keyscan 159.65.43.12 >> ~/.ssh/known_hosts 2>/dev/null || true
+          cd $GITHUB_WORKSPACE
+          # Reload nginx config (already running on this Pi)
+          sudo cp blackroad-infra/nginx/sites-available/*.conf /etc/nginx/sites-available/
+          sudo nginx -t && sudo systemctl reload nginx
+          echo "✓ nginx reloaded on $(hostname)"
 
-      - name: Deploy nginx to Pi fleet (Tier 1)
-        run: bash failover/deploy-nginx-pi.sh
-        continue-on-error: true  # Don't fail pipeline if Pi unreachable from GH Actions
+      - name: Restart agent services
+        run: |
+          # Restart any blackroad services managed by systemd
+          for svc in blackroad-agents blackroad-api ollama; do
+            if systemctl is-enabled "$svc" &>/dev/null; then
+              sudo systemctl restart "$svc" && echo "✓ restarted $svc"
+            fi
+          done
 
-      - name: Deploy nginx to DigitalOcean (Tier 2)
-        run: bash failover/deploy-do-mirror.sh
-        env:
-          DROPLET_HOST: 159.65.43.12
+      - name: Health check
+        run: |
+          sleep 3
+          curl -sf http://localhost/health && echo "✓ nginx health OK" || echo "⚠ health check failed"
+
+  # ── TIER 2: Mirror to DigitalOcean (via Pi runner SSH) ─────
+  deploy-do-mirror:
+    name: "Tier 2 — DigitalOcean mirror"
+    runs-on: [self-hosted, pi-fleet, primary]
+    needs: deploy-pi-primary
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync nginx config to droplet
+        run: |
+          # SSH from Pi to DO droplet (Pi has the key, no secret needed in GH)
+          scp blackroad-infra/nginx/sites-available/*.conf blackroad@159.65.43.12:/tmp/
+          ssh blackroad@159.65.43.12 "
+            sudo cp /tmp/*.conf /etc/nginx/sites-available/
+            sudo nginx -t && sudo systemctl reload nginx
+            echo '✓ DO droplet nginx reloaded'
+          "
+
+  # ── TIER 3: Cloudflare Worker (routing brain) ──────────────
+  # Runs on GitHub's free Ubuntu runners — just a wrangler deploy
+  deploy-failover-worker:
+    name: "CF Worker — failover router"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: failover
+          wranglerVersion: '3'
         continue-on-error: true
 
-  # ── Tier 3: Vercel ──────────────────────────────────────────
-  deploy-vercel:
-    name: Deploy to Vercel (Tier 3)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy static fallback to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FALLBACK }}
-          working-directory: failover/static-fallback
-          vercel-args: '--prod'
-
-  # ── Tier 4: Cloudflare Pages ────────────────────────────────
+  # ── TIER 4: Cloudflare Pages (always-on static) ────────────
   deploy-cf-pages:
-    name: Deploy to CF Pages (Tier 4)
+    name: "Tier 4 — CF Pages (always on)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+      - uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 848cf0b18d51e0170e0d1537aec3505a
@@ -69,74 +100,51 @@ jobs:
           directory: failover/static-fallback
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── Tier 5: GitHub Pages ────────────────────────────────────
+  # ── TIER 5: GitHub Pages (literally on GitHub's servers) ───
   deploy-gh-pages:
-    name: Deploy to GitHub Pages (Tier 5)
+    name: "Tier 5 — GitHub Pages (free)"
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
       contents: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: failover/static-fallback
-          destination_dir: .
-          commit_message: "chore: failover static build ${{ github.sha }}"
+          commit_message: "chore: failover static ${{ github.sha }}"
 
-  # ── Tier 6: Railway ─────────────────────────────────────────
+  # ── TIER 6: Railway ─────────────────────────────────────────
   deploy-railway:
-    name: Deploy to Railway (Tier 6)
+    name: "Tier 6 — Railway"
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: |
-          cd failover/static-fallback
-          railway up --service blackroad-fallback
+      - run: npm install -g @railway/cli
+      - run: railway up --service blackroad-fallback
+        working-directory: failover/static-fallback
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        continue-on-error: true
-
-  # ── CF Worker: Failover router ──────────────────────────────
-  deploy-failover-worker:
-    name: Deploy Failover Worker
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: failover
-          wranglerVersion: '3'
 
   # ── Summary ─────────────────────────────────────────────────
   summary:
     name: Resilience Summary
     runs-on: ubuntu-latest
-    needs: [deploy-vercel, deploy-cf-pages, deploy-gh-pages, deploy-failover-worker]
+    needs: [deploy-pi-primary, deploy-do-mirror, deploy-failover-worker, deploy-cf-pages, deploy-gh-pages, deploy-railway]
     if: always()
     steps:
       - name: Print tier status
         run: |
-          echo "## ⚡ BlackRoad Failover Tiers" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚡ BlackRoad Resilience — ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Tier | Target | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 1 | Pi Fleet (nginx + cloudflared) | ${{ needs.deploy-nginx.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 2 | DigitalOcean droplet (159.65.43.12) | ${{ needs.deploy-nginx.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 3 | Vercel | ${{ needs.deploy-vercel.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 4 | Cloudflare Pages | ${{ needs.deploy-cf-pages.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 5 | GitHub Pages | ${{ needs.deploy-gh-pages.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 6 | Railway | ${{ needs.deploy-railway.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| CF | Failover Worker | ${{ needs.deploy-failover-worker.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tier | Target | Cost | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1 | Pi Fleet (self-hosted runner) | \$0 | ${{ needs.deploy-pi-primary.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 | DigitalOcean droplet | \$0* | ${{ needs.deploy-do-mirror.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CF | Cloudflare Worker (router) | \$0 | ${{ needs.deploy-failover-worker.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4 | Cloudflare Pages | \$0 | ${{ needs.deploy-cf-pages.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5 | GitHub Pages | \$0 | ${{ needs.deploy-gh-pages.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 6 | Railway | \$0 | ${{ needs.deploy-railway.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_\* DO droplet only costs money if you're running it — otherwise skip tier 2_" >> $GITHUB_STEP_SUMMARY

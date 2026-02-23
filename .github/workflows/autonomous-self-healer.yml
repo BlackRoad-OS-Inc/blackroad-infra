@@ -4,26 +4,12 @@
 name: "Autonomous Self-Healer"
 
 on:
-  workflow_run:
-    workflows: ["Autonomous Orchestrator", "CI", "Test"]
-    types: [completed]
-    conclusions: [failure]
-  schedule:
-    - cron: '30 */6 * * *'  # Every 6 hours, offset from orchestrator
   workflow_dispatch:
     inputs:
-      fix_type:
-        description: 'Type of fix to attempt'
+      mode:
+        description: Run mode
         required: false
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - tests
-          - build
-          - lint
-          - deps
-          - security
+        default: auto
 
 permissions:
   contents: write

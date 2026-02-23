@@ -5,33 +5,12 @@
 name: "Autonomous Orchestrator"
 
 on:
-  push:
-    branches: [main, master, develop]
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  issues:
-    types: [opened, labeled]
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '0 */4 * * *'  # Every 4 hours
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Operation mode'
+        description: Run mode
         required: false
-        default: 'auto'
-        type: choice
-        options:
-          - auto
-          - aggressive
-          - conservative
-          - audit-only
-      force_deploy:
-        description: 'Force deployment'
-        required: false
-        default: false
-        type: boolean
+        default: auto
 
 permissions:
   contents: write

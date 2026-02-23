@@ -4,33 +4,12 @@
 name: "Autonomous Cross-Repo Coordinator"
 
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - 'shared/**'
-      - 'packages/**'
-      - 'lib/**'
-      - '*.config.*'
   workflow_dispatch:
     inputs:
-      sync_type:
-        description: 'Type of sync'
-        required: true
-        type: choice
-        options:
-          - config
-          - dependencies
-          - workflows
-          - all
-      target_repos:
-        description: 'Target repos (comma-separated, or "all")'
+      mode:
+        description: Run mode
         required: false
-        default: 'all'
-      dry_run:
-        description: 'Dry run (no actual changes)'
-        required: false
-        default: true
-        type: boolean
+        default: auto
 
 permissions:
   contents: write

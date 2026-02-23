@@ -4,20 +4,12 @@
 name: "Autonomous Dependency Manager"
 
 on:
-  schedule:
-    - cron: '0 3 * * 1'  # Every Monday at 3 AM
   workflow_dispatch:
     inputs:
-      update_type:
-        description: 'Update type'
+      mode:
+        description: Run mode
         required: false
-        default: 'safe'
-        type: choice
-        options:
-          - safe          # Patch versions only
-          - minor         # Minor + patch
-          - major         # All updates (risky)
-          - security      # Security updates only
+        default: auto
 
 permissions:
   contents: write

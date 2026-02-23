@@ -1,0 +1,113 @@
+name: Deploy Brand Kit
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_pages:
+        description: 'Deploy Cloudflare Pages'
+        required: false
+        default: 'true'
+      deploy_worker:
+        description: 'Deploy Stripe Worker'
+        required: false
+        default: 'true'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Build & Deploy BlackRoad Brand Kit
+
+    steps:
+      - name: Checkout brand-kit
+        uses: actions/checkout@v4
+        with:
+          repository: BlackRoad-OS-Inc/blackroad-brand-kit
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install deps
+        run: |
+          sudo apt-get install -y zsh
+          npm install -g wrangler
+
+      - name: Build site
+        run: |
+          chmod +x tools/br-brand.sh
+
+          cat > brand.json <<'BJSON'
+{
+  "name": "BlackRoad OS",
+  "tagline": "Your AI. Your Hardware. Your Rules.",
+  "description": "The AI-native developer platform.",
+  "cta_text": "Get Started",
+  "cta_url": "/docs",
+  "footer": "© 2026 BlackRoad OS, Inc.",
+  "nav": [
+    {"label": "Docs", "url": "/docs"},
+    {"label": "Pricing", "url": "/pricing"},
+    {"label": "Agents", "url": "/agents"},
+    {"label": "Team", "url": "/team"}
+  ]
+}
+BJSON
+
+          zsh tools/br-brand.sh site --config brand.json --out ./site
+
+          zsh tools/br-brand.sh new team \
+            --title "The Team" \
+            --subtitle "The agents behind BlackRoad OS." \
+            --config brand.json \
+            --output ./site/team/index.html
+
+          zsh tools/br-brand.sh new changelog \
+            --title "Changelog" \
+            --subtitle "What's new in BlackRoad OS." \
+            --config brand.json \
+            --output ./site/changelog/index.html
+
+          zsh tools/br-brand.sh new checkout \
+            --title "BlackRoad Pro" \
+            --price '$49/mo' \
+            --price-id "price_1T3nxYChUUSEbzyhRA8XeENr" \
+            --worker "https://blackroad-stripe.848cf0b18d51e0170e0d1537aec3505a.workers.dev" \
+            --feature "All 16 brand templates" \
+            --feature "br brand deploy to Cloudflare Pages" \
+            --feature "Stripe checkout + billing portal" \
+            --feature "GitHub Actions auto-deploy" \
+            --feature "Priority support" \
+            --cta "Start Free Trial" \
+            --output ./site/checkout/index.html
+
+          ls -la site/
+
+      - name: Deploy Pages
+        if: ${{ inputs.deploy_pages == 'true' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "848cf0b18d51e0170e0d1537aec3505a"
+        run: |
+          wrangler pages deploy site \
+            --project-name=blackroad-brand-kit \
+            --branch=main \
+            --commit-dirty=true
+
+      - name: Deploy Stripe Worker
+        if: ${{ inputs.deploy_worker == 'true' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "848cf0b18d51e0170e0d1537aec3505a"
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          if [ -n "$STRIPE_SECRET_KEY" ]; then
+            echo "$STRIPE_SECRET_KEY" | wrangler secret put STRIPE_SECRET_KEY \
+              --name blackroad-stripe 2>/dev/null || true
+          fi
+          cd workers/stripe && wrangler deploy
+
+      - name: Set CLOUDFLARE_API_TOKEN on brand-kit
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "$CLOUDFLARE_API_TOKEN" | gh secret set CLOUDFLARE_API_TOKEN \
+            --repo BlackRoad-OS-Inc/blackroad-brand-kit
+          echo "✓ CLOUDFLARE_API_TOKEN synced to brand-kit"

@@ -1,0 +1,47 @@
+tunnel: blackroad
+# Tunnel ID: 52915859-da18-4aa6-add5-7bd9fcac2e0b
+# Running on: blackroad-pi (192.168.4.64)
+# Protocol: QUIC
+
+credentials-file: /home/pi/.cloudflared/52915859-da18-4aa6-add5-7bd9fcac2e0b.json
+
+# ── All traffic hits nginx on localhost, nginx fans out to Pi fleet ──
+ingress:
+  # Agents API (WebSocket streaming)
+  - hostname: agents.blackroad.io
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+
+  # Main REST API
+  - hostname: api.blackroad.io
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+
+  # Local Ollama (Pi inference)
+  - hostname: ollama.blackroad.io
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+      tcpKeepAlive: 30s
+
+  # Dashboard
+  - hostname: dashboard.blackroad.io
+    service: http://localhost:80
+
+  # Docs
+  - hostname: docs.blackroad.io
+    service: http://localhost:80
+
+  # Root domain
+  - hostname: blackroad.io
+    service: http://localhost:80
+
+  # www redirect
+  - hostname: www.blackroad.io
+    service: http://localhost:80
+
+  # Catch-all (404 page)
+  - service: http_status:404

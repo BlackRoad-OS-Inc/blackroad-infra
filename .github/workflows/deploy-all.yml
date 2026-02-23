@@ -1,0 +1,138 @@
+# BlackRoad OS — Universal Deploy Workflow
+# Deploys all services across Railway, Vercel, Cloudflare, and Pi fleet
+name: 🚀 Deploy All Services
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deploy target'
+        required: false
+        default: 'all'
+        type: choice
+        options: [all, railway, vercel, cloudflare, pis]
+      dry_run:
+        description: 'Dry run (no actual deploy)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ── Railway ───────────────────────────────────────────────────────────────
+  deploy-railway:
+    name: Railway — Core Services
+    runs-on: ubuntu-latest
+    if: ${{ inputs.target == 'all' || inputs.target == 'railway' || github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Deploy Gateway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then echo "DRY RUN: railway up --service blackroad-gateway"; exit 0; fi
+          railway up --service blackroad-gateway --detach
+      - name: Deploy API
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then echo "DRY RUN: railway up --service blackroad-api"; exit 0; fi
+          railway up --service blackroad-api --detach
+
+  # ── Vercel ────────────────────────────────────────────────────────────────
+  deploy-vercel:
+    name: Vercel — Web & Docs
+    runs-on: ubuntu-latest
+    if: ${{ inputs.target == 'all' || inputs.target == 'vercel' || github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      - name: Deploy blackroad-os-web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then echo "DRY RUN: vercel --prod"; exit 0; fi
+          vercel --prod --yes --token $VERCEL_TOKEN
+
+  # ── Cloudflare Workers ────────────────────────────────────────────────────
+  deploy-cloudflare:
+    name: Cloudflare — Workers & Pages
+    runs-on: ubuntu-latest
+    if: ${{ inputs.target == 'all' || inputs.target == 'cloudflare' || github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: Install Wrangler
+        run: npm install -g wrangler
+      - name: Deploy workers matrix
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          WORKERS=(agents-api tools-api roadgateway command-center)
+          for worker in "${WORKERS[@]}"; do
+            echo "Deploying $worker..."
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "DRY RUN: wrangler deploy --name $worker"
+            else
+              wrangler deploy --name "$worker" || echo "Warning: $worker deploy failed"
+            fi
+          done
+
+  # ── Pi Fleet ──────────────────────────────────────────────────────────────
+  deploy-pis:
+    name: Pi Fleet — Agent Runtime
+    runs-on: ubuntu-latest
+    if: ${{ inputs.target == 'all' || inputs.target == 'pis' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PI_SSH_KEY }}
+      - name: Deploy to Pi fleet
+        run: |
+          PIS=("pi@192.168.4.38" "pi@192.168.4.64")
+          for pi in "${PIS[@]}"; do
+            echo "Deploying to $pi..."
+            if [ "${{ inputs.dry_run }}" = "true" ]; then echo "DRY RUN: ssh $pi 'cd ~/blackroad && git pull && ./restart-agents.sh'"; continue; fi
+            ssh -o StrictHostKeyChecking=no "$pi" \
+              'cd ~/blackroad && git pull --ff-only && systemctl --user restart blackroad-agents' \
+              || echo "Warning: $pi deploy failed"
+          done
+
+  # ── Health Check ──────────────────────────────────────────────────────────
+  verify:
+    name: Verify Deployments
+    runs-on: ubuntu-latest
+    needs: [deploy-railway, deploy-vercel, deploy-cloudflare]
+    if: always() && !inputs.dry_run
+    steps:
+      - name: Health checks
+        run: |
+          sleep 30
+          ENDPOINTS=(
+            "https://gateway.blackroad.ai/health"
+            "https://blackroad.io"
+            "https://agents.blackroad.io"
+          )
+          for url in "${ENDPOINTS[@]}"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url" --max-time 10)
+            echo "$url → $STATUS"
+            [ "$STATUS" = "200" ] || echo "Warning: $url returned $STATUS"
+          done

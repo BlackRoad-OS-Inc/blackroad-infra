@@ -11,7 +11,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     strategy:
       matrix:
         service: [core, web, agents, operator]
@@ -22,7 +22,7 @@ jobs:
           dockerfile: docker/${{ matrix.service }}/Dockerfile
 
   compose:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     steps:
       - uses: actions/checkout@v4
       - name: Validate docker-compose

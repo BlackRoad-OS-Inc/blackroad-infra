@@ -27,7 +27,7 @@ jobs:
   # ── Railway ───────────────────────────────────────────────────────────────
   deploy-railway:
     name: Railway — Core Services
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     if: ${{ inputs.target == 'all' || inputs.target == 'railway' || github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
   # ── Vercel ────────────────────────────────────────────────────────────────
   deploy-vercel:
     name: Vercel — Web & Docs
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     if: ${{ inputs.target == 'all' || inputs.target == 'vercel' || github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
   # ── Cloudflare Workers ────────────────────────────────────────────────────
   deploy-cloudflare:
     name: Cloudflare — Workers & Pages
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     if: ${{ inputs.target == 'all' || inputs.target == 'cloudflare' || github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
   # ── Pi Fleet ──────────────────────────────────────────────────────────────
   deploy-pis:
     name: Pi Fleet — Agent Runtime
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     if: ${{ inputs.target == 'all' || inputs.target == 'pis' }}
     steps:
       - uses: actions/checkout@v4
@@ -119,7 +119,7 @@ jobs:
   # ── Health Check ──────────────────────────────────────────────────────────
   verify:
     name: Verify Deployments
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     needs: [deploy-railway, deploy-vercel, deploy-cloudflare]
     if: always() && !inputs.dry_run
     steps:

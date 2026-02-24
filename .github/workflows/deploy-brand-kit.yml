@@ -14,7 +14,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     name: Build & Deploy BlackRoad Brand Kit
 
     steps:

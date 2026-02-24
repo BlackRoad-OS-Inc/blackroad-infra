@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlackRoad OS</title>
+  <style>
+    :root {
+      --black: #000000;
+      --white: #FFFFFF;
+      --amber: #F5A623;
+      --hot-pink: #FF1D6C;
+      --electric-blue: #2979FF;
+      --violet: #9C27B0;
+      --gradient: linear-gradient(135deg, #F5A623 0%, #FF1D6C 38.2%, #9C27B0 61.8%, #2979FF 100%);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 34px;
+    }
+    .logo {
+      font-size: 3.5rem;
+      font-weight: 900;
+      letter-spacing: -2px;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .tagline {
+      color: #888;
+      font-size: 1.1rem;
+      letter-spacing: 0.05em;
+    }
+    .status-bar {
+      display: flex;
+      gap: 21px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .pill {
+      padding: 8px 21px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .pill.serving  { background: #FF1D6C22; border: 1px solid #FF1D6C; color: #FF1D6C; }
+    .pill.agents   { background: #F5A62322; border: 1px solid #F5A623; color: #F5A623; }
+    .pill.orgs     { background: #2979FF22; border: 1px solid #2979FF; color: #2979FF; }
+    .pill.repos    { background: #9C27B022; border: 1px solid #9C27B0; color: #9C27B0; }
+    .links {
+      display: flex;
+      gap: 21px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .links a {
+      color: #888;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    .links a:hover { color: var(--amber); }
+    .tier-note {
+      font-size: 0.75rem;
+      color: #333;
+      margin-top: 34px;
+    }
+    /* Pulse animation on the logo */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.7; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo">⚡ BlackRoad OS</div>
+  <div class="tagline">Your AI. Your Hardware. Your Rules.</div>
+
+  <div class="status-bar">
+    <span class="pill serving">● Static Fallback Active</span>
+    <span class="pill agents">30,000 Agents</span>
+    <span class="pill orgs">17 Orgs</span>
+    <span class="pill repos">1,825+ Repos</span>
+  </div>
+
+  <div class="links">
+    <a href="https://github.com/BlackRoad-OS" target="_blank">GitHub ↗</a>
+    <a href="https://blackroad.my.salesforce.com" target="_blank">Command Center ↗</a>
+    <a href="/status.html">System Status ↗</a>
+  </div>
+
+  <p class="tier-note" id="tier">Loading origin info…</p>
+
+  <script>
+    // Show which tier served this page
+    fetch('/_br/health').then(r => r.json()).then(d => {
+      document.getElementById('tier').textContent =
+        `Served by: ${d.tier || 'static fallback'} | All live systems check: ${d.ts || 'pending'}`;
+    }).catch(() => {
+      document.getElementById('tier').textContent =
+        `Served from static fallback (Pi fleet or primary origin may be down)`;
+    });
+  </script>
+
+</body>
+</html>

@@ -8,7 +8,7 @@ on:
 
 jobs:
   apply:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     environment: production
     defaults:
       run:

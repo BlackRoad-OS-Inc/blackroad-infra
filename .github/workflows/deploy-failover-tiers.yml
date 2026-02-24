@@ -76,7 +76,7 @@ jobs:
   # Runs on GitHub's free Ubuntu runners — just a wrangler deploy
   deploy-failover-worker:
     name: "CF Worker — failover router"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     steps:
       - uses: actions/checkout@v4
       - uses: cloudflare/wrangler-action@v3
@@ -89,7 +89,7 @@ jobs:
   # ── TIER 4: Cloudflare Pages (always-on static) ────────────
   deploy-cf-pages:
     name: "Tier 4 — CF Pages (always on)"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     steps:
       - uses: actions/checkout@v4
       - uses: cloudflare/pages-action@v1
@@ -103,7 +103,7 @@ jobs:
   # ── TIER 5: GitHub Pages (literally on GitHub's servers) ───
   deploy-gh-pages:
     name: "Tier 5 — GitHub Pages (free)"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     permissions:
       contents: write
     steps:
@@ -117,7 +117,7 @@ jobs:
   # ── TIER 6: Railway ─────────────────────────────────────────
   deploy-railway:
     name: "Tier 6 — Railway"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -130,7 +130,7 @@ jobs:
   # ── Summary ─────────────────────────────────────────────────
   summary:
     name: Resilience Summary
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, blackroad-fleet]
     needs: [deploy-pi-primary, deploy-do-mirror, deploy-failover-worker, deploy-cf-pages, deploy-gh-pages, deploy-railway]
     if: always()
     steps:

@@ -1,47 +1,110 @@
 tunnel: blackroad
-# Tunnel ID: 52915859-da18-4aa6-add5-7bd9fcac2e0b
-# Running on: blackroad-pi (192.168.4.64)
-# Protocol: QUIC
+# Tunnel ID:  52915859-da18-4aa6-add5-7bd9fcac2e0b
+# Account:    848cf0b18d51e0170e0d1537aec3505a
+# Running on: blackroad-pi primary (192.168.4.64)
+# Protocol:   QUIC
+# All traffic → nginx on :80 → Pi fleet backends
 
 credentials-file: /home/pi/.cloudflared/52915859-da18-4aa6-add5-7bd9fcac2e0b.json
 
-# ── All traffic hits nginx on localhost, nginx fans out to Pi fleet ──
+# ─────────────────────────────────────────────────────────────
+# Global origin settings — applied to all unless overridden
+# ─────────────────────────────────────────────────────────────
+originRequest:
+  connectTimeout: 30s
+  tcpKeepAlive: 30s
+  noTLSVerify: true
+  http2Origin: false
+
 ingress:
-  # Agents API (WebSocket streaming)
+  # ── Health check (internal) ─────────────────────────────────
+  - hostname: health.blackroad.io
+    service: http://localhost:8080
+    originRequest:
+      connectTimeout: 5s
+
+  # ── Agents API — WebSocket + SSE streaming ─────────────────
   - hostname: agents.blackroad.io
     service: http://localhost:80
     originRequest:
-      noTLSVerify: true
-
-  # Main REST API
-  - hostname: api.blackroad.io
-    service: http://localhost:80
-    originRequest:
-      noTLSVerify: true
-
-  # Local Ollama (Pi inference)
-  - hostname: ollama.blackroad.io
-    service: http://localhost:80
-    originRequest:
-      noTLSVerify: true
       connectTimeout: 30s
       tcpKeepAlive: 30s
 
-  # Dashboard
-  - hostname: dashboard.blackroad.io
+  # ── Ollama — long-lived streaming LLM responses ────────────
+  - hostname: ollama.blackroad.io
+    service: http://localhost:80
+    originRequest:
+      connectTimeout: 30s
+      tcpKeepAlive: 60s
+
+  # ── WebSocket endpoints ────────────────────────────────────
+  - hostname: ws.blackroad.io
+    service: http://localhost:80
+  - hostname: ws.lucidia.earth
     service: http://localhost:80
 
-  # Docs
-  - hostname: docs.blackroad.io
+  # ── API endpoints ──────────────────────────────────────────
+  - hostname: api.blackroad.io
+    service: http://localhost:80
+  - hostname: api.lucidia.earth
     service: http://localhost:80
 
-  # Root domain
+  # ── Lucidia.earth ecosystem ────────────────────────────────
+  - hostname: lucidia.earth
+    service: http://localhost:80
+  - hostname: www.lucidia.earth
+    service: http://localhost:80
+  - hostname: admin.lucidia.earth
+    service: http://localhost:80
+  - hostname: docs.lucidia.earth
+    service: http://localhost:80
+  - hostname: dev.lucidia.earth
+    service: http://localhost:80
+
+  # ── blackroad.io root + all subdomains (wildcard) ──────────
+  # DNS: *.blackroad.io CNAME → tunnel UUID.cfargotunnel.com
+  - hostname: "*.blackroad.io"
+    service: http://localhost:80
   - hostname: blackroad.io
     service: http://localhost:80
-
-  # www redirect
   - hostname: www.blackroad.io
     service: http://localhost:80
 
-  # Catch-all (404 page)
+  # ── blackroad.systems ──────────────────────────────────────
+  - hostname: blackroad.systems
+    service: http://localhost:80
+  - hostname: "*.blackroad.systems"
+    service: http://localhost:80
+
+  # ── blackroad.me ───────────────────────────────────────────
+  - hostname: blackroad.me
+    service: http://localhost:80
+  - hostname: www.blackroad.me
+    service: http://localhost:80
+
+  # ── Quantum suite ──────────────────────────────────────────
+  - hostname: blackroadqi.com
+    service: http://localhost:80
+  - hostname: www.blackroadqi.com
+    service: http://localhost:80
+  - hostname: blackroadquantum.info
+    service: http://localhost:80
+  - hostname: blackroadquantum.net
+    service: http://localhost:80
+  - hostname: blackroadquantum.shop
+    service: http://localhost:80
+  - hostname: blackroadquantum.store
+    service: http://localhost:80
+
+  # ── RoadChain / RoadCoin ───────────────────────────────────
+  - hostname: roadchain.io
+    service: http://localhost:80
+  - hostname: www.roadchain.io
+    service: http://localhost:80
+  - hostname: roadcoin.io
+    service: http://localhost:80
+  - hostname: www.roadcoin.io
+    service: http://localhost:80
+
+  # ── Catch-all ──────────────────────────────────────────────
   - service: http_status:404

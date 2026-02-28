@@ -23,7 +23,7 @@ jobs:
           echo "🔑 SHA: ${{ github.event.client_payload.sha }}"
           echo "👤 Actor: ${{ github.event.client_payload.actor }}"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ github.event.client_payload.repo }}
           ref: ${{ github.event.client_payload.sha }}

@@ -16,14 +16,14 @@ jobs:
       matrix:
         service: [core, web, agents, operator]
     steps:
-      - uses: actions/checkout@v4
-      - uses: hadolint/hadolint-action@v3.1.0
+      - uses: actions/checkout@v6
+      - uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: docker/${{ matrix.service }}/Dockerfile
 
   compose:
     runs-on: [self-hosted, blackroad-fleet]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Validate docker-compose
         run: docker compose -f docker/docker-compose.yml config --quiet

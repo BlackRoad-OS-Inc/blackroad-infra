@@ -45,10 +45,12 @@ module "gateway_worker" {
 }
 
 module "primary_droplet" {
-  source = "../../modules/digitalocean-droplet"
-  name   = "blackroad-production"
-  region = var.do_region
-  size   = var.do_size
-  image  = "ubuntu-24-04-x64"
-  ssh_keys = var.do_ssh_keys
+  source           = "../../modules/digitalocean-droplet"
+  name             = "blackroad-production"
+  region           = var.do_region
+  size             = var.do_size
+  image            = "ubuntu-24-04-x64"
+  ssh_keys         = var.do_ssh_keys
+  ssh_allowed_cidr = var.ssh_allowed_cidr
+  tags             = ["production"]
 }

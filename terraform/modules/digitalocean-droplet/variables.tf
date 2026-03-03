@@ -28,6 +28,12 @@ variable "ssh_keys" {
   default     = []
 }
 
+variable "ssh_allowed_cidr" {
+  description = "CIDR blocks allowed SSH inbound. Set to your management IP range in production (e.g. [\"1.2.3.4/32\"]). Defaults to open for backward compatibility — override per environment."
+  type        = list(string)
+  default     = ["0.0.0.0/0", "::/0"]
+}
+
 variable "tags" {
   description = "Additional tags"
   type        = list(string)

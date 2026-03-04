@@ -11,10 +11,10 @@ permissions:
 
 jobs:
   sync-index:
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -24,7 +24,7 @@ jobs:
 
       - name: Extract workflow metadata
         id: metadata
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const issue = context.payload.issue;
@@ -34,12 +34,12 @@ jobs:
             }
 
             // Extract workflow ID from labels or title
-            const workflowIdLabel = issue.labels.find(l => 
+            const workflowIdLabel = issue.labels.find(l =>
               l.name.match(/^(WF|SEC|INF|EXP|FIX)-\d{8}-[A-Z]{3}-\d{4}$/)
             );
-            
-            const workflowId = workflowIdLabel 
-              ? workflowIdLabel.name 
+
+            const workflowId = workflowIdLabel
+              ? workflowIdLabel.name
               : null;
 
             if (!workflowId) {
@@ -52,26 +52,26 @@ jobs:
 
             // Extract dependencies from body
             const depsMatch = issue.body?.match(/Dependencies?:\s*([^\n]+)/i);
-            const deps = depsMatch 
+            const deps = depsMatch
               ? depsMatch[1].split(',').map(d => d.trim()).filter(d => d)
               : [];
 
             // Extract other metadata from labels
-            const trafficLight = issue.labels.find(l => 
+            const trafficLight = issue.labels.find(l =>
               l.name.match(/[🟢🟡🔴]/)
             )?.name || '🟢';
 
             const state = issue.state === 'closed' ? 'Done' : 'Active';
-            
-            const scope = issue.labels.find(l => 
+
+            const scope = issue.labels.find(l =>
               ['Local', 'Service', 'System', 'Public', 'Experimental'].includes(l.name)
             )?.name || 'Service';
 
-            const risk = issue.labels.find(l => 
+            const risk = issue.labels.find(l =>
               ['Low', 'Medium', 'High', 'Critical'].includes(l.name)
             )?.name || 'Unknown';
 
-            const intent = issue.labels.find(l => 
+            const intent = issue.labels.find(l =>
               ['Build', 'Fix', 'Explore', 'Research', 'Deploy', 'Monitor'].includes(l.name)
             )?.name || 'Build';
 
@@ -100,20 +100,20 @@ jobs:
         run: |
           ENTRY='${{ steps.metadata.outputs.entry }}'
           WORKFLOW_ID='${{ steps.metadata.outputs.workflow_id }}'
-          
+
           # Create index file if it doesn't exist
           touch .blackroad/workflow-index.jsonl
-          
+
           # Check if entry already exists (by ID)
           if grep -q "\"id\":\"$WORKFLOW_ID\"" .blackroad/workflow-index.jsonl; then
             # Update existing entry (remove old, append new)
             grep -v "\"id\":\"$WORKFLOW_ID\"" .blackroad/workflow-index.jsonl > .blackroad/workflow-index.tmp
             mv .blackroad/workflow-index.tmp .blackroad/workflow-index.jsonl
           fi
-          
+
           # Append new entry
           echo "$ENTRY" >> .blackroad/workflow-index.jsonl
-          
+
           echo "✅ Updated workflow index: $WORKFLOW_ID"
 
       - name: Update sync timestamp
@@ -126,9 +126,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           git add .blackroad/workflow-index.jsonl .blackroad/last-sync.txt
-          
+
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else

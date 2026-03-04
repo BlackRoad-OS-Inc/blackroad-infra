@@ -26,14 +26,14 @@ jobs:
     name: 🌐 Fix blackroad.ai DNS records
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Get blackroad.ai Zone ID and create missing CNAME records
         run: |
           ZONE=$(curl -sf "https://api.cloudflare.com/client/v4/zones?name=blackroad.ai" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | \
             python3 -c "import sys,json; d=json.load(sys.stdin); print(d['result'][0]['id'] if d.get('result') else '')" 2>/dev/null)
-          
+
           if [ -z "$ZONE" ]; then
             echo "❌ Could not get blackroad.ai zone ID — check CLOUDFLARE_API_TOKEN secret"
             exit 1
@@ -67,7 +67,7 @@ jobs:
     name: 🌐 Ensure blackroad.io API DNS records
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Get blackroad.io Zone ID and create missing CNAME records
         run: |
@@ -105,9 +105,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [fix-dns-blackroad-ai, fix-dns-blackroad-io]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with: { node-version: '22' }
       - run: npm install -g wrangler@latest
 
       - name: Deploy api-edge → api.blackroad.ai + api.blackroad.io
@@ -172,6 +172,23 @@ jobs:
           done
           echo ""; echo "🏁 $OK healthy, $FAIL failed"
 
+      - name: Dispatch async health-check to task-runner
+        if: always()
+        run: |
+          curl -sf -X POST "https://tasks.blackroad.ai/dispatch" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "type": "health-check",
+              "payload": {
+                "endpoints": [
+                  "https://api.blackroad.ai/health",
+                  "https://agents.blackroad.ai/health",
+                  "https://status.blackroad.ai/health"
+                ]
+              }
+            }' && echo "✅ Async health-check dispatched to task-runner" || echo "⚠️ task-runner unreachable, skipping async check"
+        continue-on-error: true
+
       - name: Write summary
         if: always()
         run: |
@@ -180,7 +197,7 @@ jobs:
 
 ### Fixed
 - `api.blackroad.ai` — DNS CNAME added + api-edge worker deployed
-- `agents.blackroad.ai` — DNS CNAME added + agents-api worker deployed  
+- `agents.blackroad.ai` — DNS CNAME added + agents-api worker deployed
 - `status.blackroad.io` — Updated with full Pi fleet + all 7 services
 
 ### Architecture

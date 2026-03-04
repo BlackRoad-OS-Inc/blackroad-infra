@@ -12,14 +12,17 @@ on:
         required: false
         default: 'true'
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     name: Build & Deploy BlackRoad Brand Kit
 
     steps:
       - name: Checkout brand-kit
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: BlackRoad-OS-Inc/blackroad-brand-kit
           token: ${{ secrets.GITHUB_TOKEN }}

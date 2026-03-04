@@ -192,21 +192,21 @@ jobs:
       - name: Write summary
         if: always()
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-## 🔧 API Worker Fix Summary
-
-### Fixed
-- `api.blackroad.ai` — DNS CNAME added + api-edge worker deployed
-- `agents.blackroad.ai` — DNS CNAME added + agents-api worker deployed
-- `status.blackroad.io` — Updated with full Pi fleet + all 7 services
-
-### Architecture
-```
-api.blackroad.ai → blackroad-api-edge (Worker) → blackroad.systems (tunnel → Pi :8788)
-agents.blackroad.ai → agents-api (Worker) → api.blackroad.io (tunnel → Pi :8787)
-```
-
-### Related Repos
-- `BlackRoad-OS-Inc/blackroad-infra` — wrangler configs, DNS docs
-- `BlackRoad-OS-Inc/blackroad-core` — gateway + worker source
-EOF
+          {
+            echo "## 🔧 API Worker Fix Summary"
+            echo ""
+            echo "### Fixed"
+            echo "- \`api.blackroad.ai\` — DNS CNAME added + api-edge worker deployed"
+            echo "- \`agents.blackroad.ai\` — DNS CNAME added + agents-api worker deployed"
+            echo "- \`status.blackroad.io\` — Updated with full Pi fleet + all 7 services"
+            echo ""
+            echo "### Architecture"
+            echo "\`\`\`"
+            echo "api.blackroad.ai → blackroad-api-edge (Worker) → blackroad.systems (tunnel → Pi :8788)"
+            echo "agents.blackroad.ai → agents-api (Worker) → api.blackroad.io (tunnel → Pi :8787)"
+            echo "\`\`\`"
+            echo ""
+            echo "### Related Repos"
+            echo "- \`BlackRoad-OS-Inc/blackroad-infra\` — wrangler configs, DNS docs"
+            echo "- \`BlackRoad-OS-Inc/blackroad-core\` — gateway + worker source"
+          } >> "$GITHUB_STEP_SUMMARY"

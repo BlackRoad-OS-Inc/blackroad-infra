@@ -1,0 +1,24 @@
+name               = "blackroad-task-runner"
+main               = "src/index.js"
+compatibility_date = "2024-12-01"
+# account_id is not a secret credential — it's a public identifier required by wrangler.
+# This value is consistent across all workers in this repo.
+account_id         = "848cf0b18d51e0170e0d1537aec3505a"
+
+[vars]
+ENVIRONMENT = "production"
+
+# Cloudflare Queue for dispatching long-running tasks
+[[queues.producers]]
+binding  = "TASK_QUEUE"
+queue    = "blackroad-ci-tasks"
+
+[[queues.consumers]]
+queue            = "blackroad-ci-tasks"
+max_batch_size   = 10
+max_batch_timeout = 30
+max_retries      = 3
+
+[[routes]]
+pattern   = "tasks.blackroad.ai/*"
+zone_name = "blackroad.ai"

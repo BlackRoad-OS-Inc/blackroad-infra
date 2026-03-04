@@ -24,13 +24,13 @@ jobs:
   # ============================================
   identify-repos:
     name: "Identify Affected Repos"
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     outputs:
       repos: ${{ steps.find.outputs.repos }}
       sync_files: ${{ steps.changes.outputs.files }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 2
 
@@ -75,7 +75,7 @@ jobs:
     name: "Sync Workflows"
     needs: identify-repos
     if: github.event.inputs.sync_type == 'workflows' || github.event.inputs.sync_type == 'all' || contains(needs.identify-repos.outputs.sync_files, '.github/workflows')
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         repo: ${{ fromJSON(needs.identify-repos.outputs.repos) }}
@@ -84,12 +84,12 @@ jobs:
 
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: source
 
       - name: Checkout Target
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ matrix.repo }}
           path: target
@@ -165,7 +165,7 @@ jobs:
     name: "Sync Configurations"
     needs: identify-repos
     if: github.event.inputs.sync_type == 'config' || github.event.inputs.sync_type == 'all'
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         repo: ${{ fromJSON(needs.identify-repos.outputs.repos) }}
@@ -174,12 +174,12 @@ jobs:
 
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: source
 
       - name: Checkout Target
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ matrix.repo }}
           path: target
@@ -242,10 +242,10 @@ jobs:
     name: "Sync Dependencies"
     needs: identify-repos
     if: github.event.inputs.sync_type == 'dependencies' || github.event.inputs.sync_type == 'all'
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Analyze Dependencies
         id: deps
@@ -280,7 +280,7 @@ jobs:
     name: "Broadcast Changes"
     needs: [sync-workflows, sync-config, sync-deps]
     if: always()
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Notify Coordination System

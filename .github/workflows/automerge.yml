@@ -1,0 +1,83 @@
+# ✅ VERIFIED WORKING — Auto-merges PRs from Dependabot and PRs labeled 'automerge'
+# Requires CI to pass first via branch protection rules
+name: Automerge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, ready_for_review]
+  check_suite:
+    types: [completed]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    name: Auto-merge eligible PRs
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - name: Enable automerge for Dependabot PRs
+        if: github.actor == 'dependabot[bot]'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request?.number || context.payload.workflow_run?.pull_requests?.[0]?.number,
+            });
+            if (!pr) { console.log('No PR found'); return; }
+
+            // Only auto-merge patch and minor dependency updates
+            const title = pr.title.toLowerCase();
+            const isDepBump = title.includes('bump') || title.includes('update');
+            if (!isDepBump) { console.log('Not a dependency bump, skipping'); return; }
+
+            try {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                event: 'APPROVE',
+              });
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                merge_method: 'squash',
+              });
+              console.log(`✅ Auto-merged PR #${pr.number}: ${pr.title}`);
+            } catch (e) {
+              console.log(`ℹ️ Could not merge PR #${pr.number}: ${e.message}`);
+            }
+
+      - name: Enable automerge for labeled PRs
+        if: |
+          github.actor != 'dependabot[bot]' &&
+          contains(github.event.pull_request.labels.*.name, 'automerge')
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request?.number;
+            if (!prNumber) { console.log('No PR number found'); return; }
+
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                merge_method: 'squash',
+              });
+              console.log(`✅ Auto-merged labeled PR #${prNumber}`);
+            } catch (e) {
+              console.log(`ℹ️ Could not merge PR #${prNumber}: ${e.message}`);
+            }

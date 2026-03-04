@@ -29,7 +29,7 @@ jobs:
     runs-on: [self-hosted, pi-fleet, primary]
     continue-on-error: true   # if Pi is down don't block fallbacks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Pull latest + reload nginx
         run: |
@@ -60,7 +60,7 @@ jobs:
     needs: deploy-pi-primary
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Sync nginx config to droplet
         run: |
@@ -76,10 +76,10 @@ jobs:
   # Runs on GitHub's free Ubuntu runners — just a wrangler deploy
   deploy-failover-worker:
     name: "CF Worker — failover router"
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: cloudflare/wrangler-action@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: failover
@@ -89,10 +89,10 @@ jobs:
   # ── TIER 4: Cloudflare Pages (always-on static) ────────────
   deploy-cf-pages:
     name: "Tier 4 — CF Pages (always on)"
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: cloudflare/pages-action@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: cloudflare/pages-action@f0a1cd58cd66095dee69bfa18fa5efd1dde93bca # v1.5.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 848cf0b18d51e0170e0d1537aec3505a
@@ -103,12 +103,12 @@ jobs:
   # ── TIER 5: GitHub Pages (literally on GitHub's servers) ───
   deploy-gh-pages:
     name: "Tier 5 — GitHub Pages (free)"
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: failover/static-fallback
@@ -117,10 +117,10 @@ jobs:
   # ── TIER 6: Railway ─────────────────────────────────────────
   deploy-railway:
     name: "Tier 6 — Railway"
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: npm install -g @railway/cli
       - run: railway up --service blackroad-fallback
         working-directory: failover/static-fallback
@@ -130,7 +130,7 @@ jobs:
   # ── Summary ─────────────────────────────────────────────────
   summary:
     name: Resilience Summary
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     needs: [deploy-pi-primary, deploy-do-mirror, deploy-failover-worker, deploy-cf-pages, deploy-gh-pages, deploy-railway]
     if: always()
     steps:

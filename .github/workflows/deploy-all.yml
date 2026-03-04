@@ -27,11 +27,11 @@ jobs:
   # ── Railway ───────────────────────────────────────────────────────────────
   deploy-railway:
     name: Railway — Core Services
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     if: ${{ inputs.target == 'all' || inputs.target == 'railway' || github.event_name == 'push' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -51,11 +51,11 @@ jobs:
   # ── Vercel ────────────────────────────────────────────────────────────────
   deploy-vercel:
     name: Vercel — Web & Docs
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     if: ${{ inputs.target == 'all' || inputs.target == 'vercel' || github.event_name == 'push' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Install Vercel CLI
         run: npm install -g vercel
@@ -71,11 +71,11 @@ jobs:
   # ── Cloudflare Workers ────────────────────────────────────────────────────
   deploy-cloudflare:
     name: Cloudflare — Workers & Pages
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     if: ${{ inputs.target == 'all' || inputs.target == 'cloudflare' || github.event_name == 'push' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Install Wrangler
         run: npm install -g wrangler
@@ -97,12 +97,12 @@ jobs:
   # ── Pi Fleet ──────────────────────────────────────────────────────────────
   deploy-pis:
     name: Pi Fleet — Agent Runtime
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     if: ${{ inputs.target == 'all' || inputs.target == 'pis' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
         with:
           ssh-private-key: ${{ secrets.PI_SSH_KEY }}
       - name: Deploy to Pi fleet
@@ -119,7 +119,7 @@ jobs:
   # ── Health Check ──────────────────────────────────────────────────────────
   verify:
     name: Verify Deployments
-    runs-on: [self-hosted, blackroad-fleet]
+    runs-on: ubuntu-latest
     needs: [deploy-railway, deploy-vercel, deploy-cloudflare]
     if: always() && !inputs.dry_run
     steps:

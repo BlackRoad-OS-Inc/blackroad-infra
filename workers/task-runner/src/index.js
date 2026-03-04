@@ -52,22 +52,32 @@ async function processTask(task, env) {
       const endpoints = payload.endpoints || [];
       const results = await Promise.allSettled(
         endpoints.map(async (url) => {
-          const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
-          return { url, status: r.status, ok: r.ok };
+          try {
+            const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
+            return { url, status: r.status, ok: r.ok, error: null };
+          } catch (e) {
+            const isTimeout = e.name === 'TimeoutError' || e.message.includes('timeout');
+            return { url, status: null, ok: false, error: isTimeout ? 'timeout' : e.message };
+          }
         })
       );
-      return { type, results: results.map(r => r.value || r.reason) };
+      return { type, results: results.map(r => r.value ?? { url: null, ok: false, error: String(r.reason) }) };
     }
 
     case 'dns-verify': {
       const domains = payload.domains || [];
       const results = await Promise.allSettled(
         domains.map(async (domain) => {
-          const r = await fetch(`https://${domain}`, { signal: AbortSignal.timeout(10000) });
-          return { domain, status: r.status, reachable: r.ok };
+          try {
+            const r = await fetch(`https://${domain}`, { signal: AbortSignal.timeout(10000) });
+            return { domain, status: r.status, reachable: r.ok, error: null };
+          } catch (e) {
+            const isTimeout = e.name === 'TimeoutError' || e.message.includes('timeout');
+            return { domain, status: null, reachable: false, error: isTimeout ? 'timeout' : e.message };
+          }
         })
       );
-      return { type, results: results.map(r => r.value || r.reason) };
+      return { type, results: results.map(r => r.value ?? { domain: null, reachable: false, error: String(r.reason) }) };
     }
 
     case 'worker-deploy': {

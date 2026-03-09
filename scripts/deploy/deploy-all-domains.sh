@@ -1,60 +1,63 @@
 #!/bin/bash
-# Deploy apps to ALL BlackRoad domains
 
-CF_TOKEN="yP5h0HvsXX0BpHLs01tLmgtTbQurIKPL4YnQfIwy"
-API="https://api.cloudflare.com/client/v4"
-APP_DIR=~/blackroad-universal-app
+# BlackRoad Deploy - Deploy to ALL Cloudflare Domains
+# This script deploys the test app to all major domains
 
-PINK='\033[38;5;205m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+echo "🚀 BlackRoad Deploy - Mass Deployment Script"
+echo "=============================================="
+echo ""
 
-echo -e "${PINK}━━━ DEPLOYING APPS TO ALL 20 BLACKROAD DOMAINS ━━━${NC}"
+PI_HOST="192.168.4.64"
+IMAGE="blackroad/node-api:latest"
 
+# Array of domains and their ports
 declare -A DOMAINS=(
-    ["blackroad.io"]="blackroad-io-main"
-    ["blackroadai.com"]="blackroad-ai"
-    ["blackroadquantum.com"]="blackroad-quantum"
-    ["lucidia.earth"]="lucidia-earth"
-    ["lucidiaqi.com"]="lucidia-qi"
-    ["lucidia.studio"]="lucidia-studio"
-    ["roadchain.io"]="roadchain"
-    ["roadcoin.io"]="roadcoin"
-    ["blackroad.systems"]="blackroad-systems"
-    ["blackroad.network"]="blackroad-network"
-    ["blackroad.me"]="blackroad-me"
-    ["blackroad.company"]="blackroad-company"
-    ["blackroadinc.us"]="blackroad-inc-us"
-    ["aliceqi.com"]="alice-qi"
-    ["blackboxprogramming.io"]="blackbox-programming"
-    ["blackroadqi.com"]="blackroad-qi"
-    ["blackroadquantum.info"]="blackroad-quantum-info"
-    ["blackroadquantum.net"]="blackroad-quantum-net"
-    ["blackroadquantum.shop"]="blackroad-quantum-shop"
-    ["blackroadquantum.store"]="blackroad-quantum-store"
+  ["api.blackroad.io"]=3001
+  ["demo.blackroad.io"]=3002
+  ["home.blackroad.io"]=3003
+  ["creator-studio.blackroad.io"]=3004
+  ["devops.blackroad.io"]=3005
+  ["education.blackroad.io"]=3006
+  ["finance.blackroad.io"]=3007
+  ["ideas.blackroad.io"]=3008
+  ["legal.blackroad.io"]=3009
+  ["research-lab.blackroad.io"]=3010
+  ["studio.blackroad.io"]=3011
+  ["brand.blackroad.io"]=3012
+  ["earth.blackroad.io"]=3013
+  ["blackroadqi.com"]=3020
+  ["blackroadquantum.info"]=3021
+  ["blackroadquantum.net"]=3022
+  ["blackroadquantum.shop"]=3023
+  ["blackroadquantum.store"]=3024
+  ["roadcoin.io"]=3030
+  ["roadchain.io"]=3031
 )
 
-get_zone_id() {
-    curl -s "$API/zones?name=$1" -H "Authorization: Bearer $CF_TOKEN" | jq -r '.result[0].id'
-}
-
-set_dns() {
-    local domain="$1"
-    local content="$2"
-    local zone_id=$(get_zone_id "$domain")
-    
-    curl -s -X POST "$API/zones/$zone_id/dns_records" \
-        -H "Authorization: Bearer $CF_TOKEN" \
-        -H "Content-Type: application/json" \
-        --data "{\"type\":\"CNAME\",\"name\":\"@\",\"content\":\"$content\",\"proxied\":true}" 2>/dev/null || true
-}
+echo "📦 Deploying to ${#DOMAINS[@]} domains..."
+echo ""
 
 for domain in "${!DOMAINS[@]}"; do
-    project="${DOMAINS[$domain]}"
-    echo -e "${YELLOW}[$domain]${NC} → $project"
-    wrangler pages deploy "$APP_DIR" --project-name="$project" 2>&1 | tail -1
-    sleep 0.3
+  port=${DOMAINS[$domain]}
+  container_name=$(echo "$domain" | tr '.' '-')
+  
+  echo "🔄 $domain → Port $port"
+  
+  ssh aria64 "
+    docker stop $container_name 2>/dev/null || true && \
+    docker rm $container_name 2>/dev/null || true && \
+    docker run -d \
+      --name $container_name \
+      --restart unless-stopped \
+      -p $port:3001 \
+      -e DOMAIN=$domain \
+      $IMAGE
+  " 2>/dev/null && echo "   ✅ Deployed" || echo "   ❌ Failed"
 done
 
-echo -e "${GREEN}✓ Done!${NC}"
+echo ""
+echo "✅ Mass deployment complete!"
+echo ""
+echo "📊 Checking running containers..."
+ssh aria64 "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep -E 'blackroad|roadcoin|roadchain' | wc -l"
+echo " containers running"

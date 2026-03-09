@@ -1,0 +1,107 @@
+---
+# BlackRoad Pi Fleet — Ansible Playbook
+# Deploy agent runtime to all Pi nodes
+# Usage: ansible-playbook -i hosts.ini pi-fleet.yaml
+
+- name: BlackRoad Pi Fleet Setup
+  hosts: pi_nodes
+  become: yes
+  gather_facts: yes
+
+  vars:
+    blackroad_user: pi
+    blackroad_dir: /home/pi/blackroad
+    ollama_version: "0.3.0"
+    gateway_url: "http://192.168.4.64:8787"
+    pi_node_capacity: 7500
+
+  tasks:
+    # ── System packages ────────────────────────────────────────────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - git
+          - curl
+          - sqlite3
+          - python3
+          - python3-pip
+          - nodejs
+          - npm
+          - cloudflared
+        state: present
+
+    # ── Ollama ─────────────────────────────────────────────────────────────────
+    - name: Check if Ollama is installed
+      stat:
+        path: /usr/local/bin/ollama
+      register: ollama_installed
+
+    - name: Install Ollama
+      shell: curl -fsSL https://ollama.ai/install.sh | sh
+      when: not ollama_installed.stat.exists
+
+    - name: Enable Ollama service
+      systemd:
+        name: ollama
+        enabled: yes
+        state: started
+
+    # ── Pull default models ────────────────────────────────────────────────────
+    - name: Pull Qwen 2.5 7B model
+      command: ollama pull qwen2.5:7b
+      become_user: "{{ blackroad_user }}"
+      async: 600
+      poll: 30
+
+    # ── BlackRoad agent runtime ────────────────────────────────────────────────
+    - name: Create blackroad directory
+      file:
+        path: "{{ blackroad_dir }}"
+        state: directory
+        owner: "{{ blackroad_user }}"
+        group: "{{ blackroad_user }}"
+
+    - name: Set gateway URL in environment
+      lineinfile:
+        path: /etc/environment
+        line: "BLACKROAD_GATEWAY_URL={{ gateway_url }}"
+        state: present
+
+    - name: Set node capacity
+      lineinfile:
+        path: /etc/environment
+        line: "BLACKROAD_NODE_CAPACITY={{ pi_node_capacity }}"
+        state: present
+
+    # ── Cloudflared tunnel ─────────────────────────────────────────────────────
+    - name: Configure cloudflared tunnel (blackroad-pi only)
+      when: inventory_hostname == "blackroad-pi"
+      block:
+        - name: Create cloudflared config dir
+          file:
+            path: /home/pi/.cloudflared
+            state: directory
+            owner: pi
+
+        - name: Install cloudflared service
+          command: cloudflared service install {{ cloudflare_tunnel_token }}
+          environment:
+            CLOUDFLARE_TUNNEL_TOKEN: "{{ cloudflare_tunnel_token }}"
+
+    # ── Healthcheck ────────────────────────────────────────────────────────────
+    - name: Verify Ollama is running
+      uri:
+        url: http://localhost:11434/api/tags
+        method: GET
+      register: ollama_health
+      retries: 3
+      delay: 5
+
+    - name: Print node status
+      debug:
+        msg: "✅ {{ inventory_hostname }} ready — Ollama {{ ollama_health.status }}"

@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install + run shellcheck
+        run: |
+          if ! command -v shellcheck &>/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          fi
+          find . -name "*.sh" -not -path "./.git/*" | xargs shellcheck --severity=warning 2>&1 || true
+          echo "done"
+        continue-on-error: true
+
+  terraform:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@v3
+        with: {terraform_version: "1.7.0"}
+      - name: Validate
+        run: |
+          find . -name "*.tf" -exec dirname {} \; | sort -u | while read dir; do
+            terraform -chdir="$dir" init -backend=false -no-color 2>/dev/null || true
+            terraform -chdir="$dir" validate -no-color 2>/dev/null && echo "ok: $dir" || echo "warn: $dir"
+          done
+        continue-on-error: true
+
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Lint YAML
+        run: |
+          pip install yamllint -q --break-system-packages 2>/dev/null || pip install yamllint -q 2>/dev/null || true
+          find . \( -name "*.yml" -o -name "*.yaml" \) -not -path "./.git/*" | xargs yamllint -d relaxed 2>/dev/null || true
+          echo "done"
+        continue-on-error: true

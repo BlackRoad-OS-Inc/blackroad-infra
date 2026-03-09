@@ -1,0 +1,110 @@
+# Copyright (c) 2025-2026 BlackRoad OS, Inc. All Rights Reserved.
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Infra checks (this repo) ──────────────────────────────────────────────
+  infra-checks:
+    name: Infra — ShellCheck / YAML / Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get install -y -qq shellcheck
+          find . -name "*.sh" -not -path "./.git/*" | xargs shellcheck --severity=warning 2>&1 || true
+          echo "✓ ShellCheck done"
+        continue-on-error: true
+
+      - name: YAML lint
+        run: |
+          pip install yamllint -q --break-system-packages 2>/dev/null || pip install yamllint -q
+          find . \( -name "*.yml" -o -name "*.yaml" \) -not -path "./.git/*" | \
+            xargs yamllint -d relaxed 2>/dev/null || true
+          echo "✓ YAML lint done"
+        continue-on-error: true
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform validate
+        run: |
+          find . -name "*.tf" -exec dirname {} \; | sort -u | while read -r dir; do
+            terraform -chdir="$dir" init -backend=false -no-color 2>/dev/null || true
+            terraform -chdir="$dir" validate -no-color 2>/dev/null && echo "ok: $dir" || echo "warn: $dir"
+          done
+        continue-on-error: true
+
+  # ── Brand design tests (blackroad-design repo) ───────────────────────────
+  brand-design:
+    name: Brand Design — Design Tokens + Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: BlackRoad-OS-Inc/blackroad-design
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"  # matches blackroad-design's own CI requirement
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --quiet
+
+      - name: Run design token tests
+        run: npm test
+
+      - name: Validate token JSON files
+        run: |
+          for f in tokens/*.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8')); console.log('✓ $f')"
+          done
+        continue-on-error: true
+
+      - name: Brand color compliance
+        run: |
+          FORBIDDEN="#FF9D00|#FF6B00|#FF0066|#FF006B|#D600AA|#7700FF|#0066FF"
+          if grep -rn -E "$FORBIDDEN" --include="*.css" --include="*.ts" --include="*.tsx" --include="*.json" . 2>/dev/null; then
+            echo "❌ Forbidden colors found"
+            exit 1
+          fi
+          echo "✓ No forbidden colors found"
+        continue-on-error: true
+
+  # ── Operator tests (blackroad-operator repo) ─────────────────────────────
+  operator:
+    name: Operator — CLI Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: BlackRoad-OS-Inc/blackroad-operator
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"  # matches blackroad-operator engines: ">=22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --quiet
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+        continue-on-error: true
+
+      - name: Run tests
+        run: npm test

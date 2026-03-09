@@ -1,58 +1,134 @@
 # Copyright (c) 2025-2026 BlackRoad OS, Inc. All Rights Reserved.
-# Build each service from its own repo with: docker compose build <service>
+# BlackRoad OS — local dev stack
+#
+# Usage:
+#   cp .env.example .env       # Add API keys
+#   docker compose up -d       # Start everything
+#   docker compose up -d core  # Start just the gateway
+#   docker compose logs -f     # Stream logs
+#
+# Endpoints after startup:
+#   Gateway:    http://localhost:8787
+#   Registry:   http://localhost:3001
+#   Ollama:     http://localhost:11434
+#   Web:        http://localhost:3000
 
 services:
+
+  # ─── Ollama — local LLM inference ─────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: blackroad-ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - blackroad
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ─── Gateway (blackroad-core) ─────────────────────────────────────────────
   core:
     build:
       context: ./core
       dockerfile: Dockerfile
+    container_name: blackroad-core
     ports:
-      - "8787:8787"
+      - "${GATEWAY_PORT:-8787}:8787"
     environment:
-      - NODE_ENV=production
-      - BLACKROAD_GATEWAY_PORT=8787
-    networks:
-      - blackroad
-    restart: unless-stopped
-
-  web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_GATEWAY_URL=http://core:8787
+      NODE_ENV: ${NODE_ENV:-development}
+      BLACKROAD_GATEWAY_PORT: 8787
+      BLACKROAD_GATEWAY_HOST: "0.0.0.0"
+      BLACKROAD_OLLAMA_URL: "http://ollama:11434"
+      BLACKROAD_GATEWAY_TOKEN: ${BLACKROAD_GATEWAY_TOKEN:-dev}
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-60}
+      # Set real keys in .env — never commit them
+      BLACKROAD_ANTHROPIC_API_KEY: ${BLACKROAD_ANTHROPIC_API_KEY:-}
+      BLACKROAD_OPENAI_API_KEY: ${BLACKROAD_OPENAI_API_KEY:-}
+      BLACKROAD_GEMINI_API_KEY: ${BLACKROAD_GEMINI_API_KEY:-}
     depends_on:
-      - core
+      ollama:
+        condition: service_healthy
     networks:
       - blackroad
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8787/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # ─── Agent Registry (blackroad-agents) ───────────────────────────────────
   agents:
     build:
       context: ./agents
       dockerfile: Dockerfile
+    container_name: blackroad-agents
     ports:
-      - "8788:8788"
+      - "${REGISTRY_PORT:-3001}:3001"
     environment:
-      - NODE_ENV=production
-      - GATEWAY_URL=http://core:8787
+      NODE_ENV: ${NODE_ENV:-development}
+      REGISTRY_PORT: 3001
+      REGISTRY_HOST: "0.0.0.0"
+      BLACKROAD_GATEWAY_URL: "http://core:8787"
+      BLACKROAD_GATEWAY_TOKEN: ${BLACKROAD_GATEWAY_TOKEN:-dev}
     depends_on:
-      - core
+      core:
+        condition: service_healthy
     networks:
       - blackroad
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # ─── Web Dashboard (blackroad-web) ────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: blackroad-web
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXT_PUBLIC_GATEWAY_URL: "http://localhost:8787"
+      NEXT_PUBLIC_AGENTS_API_URL: "http://localhost:3001"
+      NEXT_PUBLIC_GATEWAY_TOKEN: ${BLACKROAD_GATEWAY_TOKEN:-dev}
+    depends_on:
+      core:
+        condition: service_healthy
+      agents:
+        condition: service_healthy
+    networks:
+      - blackroad
+    restart: unless-stopped
+    profiles:
+      - full  # Optional: br up --profile full
+
+  # ─── Operator CLI ─────────────────────────────────────────────────────────
   operator:
     build:
       context: ./operator
       dockerfile: Dockerfile
+    container_name: blackroad-operator
     environment:
-      - BLACKROAD_GATEWAY_URL=http://core:8787
+      BLACKROAD_GATEWAY_URL: "http://core:8787"
+      BLACKROAD_GATEWAY_TOKEN: ${BLACKROAD_GATEWAY_TOKEN:-dev}
+      BLACKROAD_AGENTS_URL: "http://agents:3001"
     depends_on:
-      - core
+      core:
+        condition: service_healthy
     networks:
       - blackroad
     profiles:
@@ -61,3 +137,7 @@ services:
 networks:
   blackroad:
     driver: bridge
+
+volumes:
+  ollama_data:
+    name: blackroad_ollama_models

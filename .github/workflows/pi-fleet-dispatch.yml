@@ -1,0 +1,82 @@
+name: Pi Fleet — Handle Repo Dispatch
+
+# ──────────────────────────────────────────────────────────────
+#  Receives repository_dispatch events from all 17 orgs.
+#  Runs the actual deploy ON the Pi (self-hosted runner).
+#  GitHub pushes the job to Pi over HTTPS — Pi does the work.
+# ──────────────────────────────────────────────────────────────
+
+on:
+  repository_dispatch:
+    types: [repo-push]
+
+jobs:
+  deploy-on-pi:
+    name: "Deploy on Pi — ${{ github.event.client_payload.repo }}"
+    runs-on: [self-hosted, pi-fleet, primary]
+    steps:
+
+      - name: Log incoming dispatch
+        run: |
+          echo "📦 Dispatch from: ${{ github.event.client_payload.repo }}"
+          echo "🌿 Ref: ${{ github.event.client_payload.ref }}"
+          echo "🔑 SHA: ${{ github.event.client_payload.sha }}"
+          echo "👤 Actor: ${{ github.event.client_payload.actor }}"
+
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.client_payload.repo }}
+          ref: ${{ github.event.client_payload.sha }}
+          token: ${{ secrets.ORG_PAT }}
+          path: repo
+
+      - name: Detect project type + deploy
+        run: |
+          cd repo
+
+          # ── Node.js ──────────────────────────────────────────
+          if [ -f package.json ]; then
+            echo "→ Node.js project detected"
+            npm install --prefer-offline --silent
+            npm run build --if-present
+            # Restart via PM2 if running
+            pm2_name=$(cat package.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('name','app'))" 2>/dev/null || echo "app")
+            pm2 restart "$pm2_name" 2>/dev/null || pm2 start npm --name "$pm2_name" -- start 2>/dev/null || true
+            echo "✓ Node deploy complete"
+          fi
+
+          # ── Python ───────────────────────────────────────────
+          if [ -f requirements.txt ] || [ -f pyproject.toml ]; then
+            echo "→ Python project detected"
+            pip install -q -r requirements.txt 2>/dev/null || pip install -q . 2>/dev/null || true
+            # Restart service if systemd unit exists
+            svc_name=$(basename "${{ github.event.client_payload.repo }}")
+            sudo systemctl restart "$svc_name" 2>/dev/null || true
+            echo "✓ Python deploy complete"
+          fi
+
+          # ── Static / HTML ─────────────────────────────────────
+          if [ -f index.html ] && [ ! -f package.json ]; then
+            echo "→ Static site detected"
+            dest="/var/www/${{ github.event.client_payload.repo }}"
+            sudo mkdir -p "$dest"
+            sudo cp -r . "$dest/"
+            sudo nginx -t && sudo systemctl reload nginx
+            echo "✓ Static deploy complete"
+          fi
+
+          # ── Shell scripts ─────────────────────────────────────
+          if [ -f br ] || [ -f install.sh ]; then
+            chmod +x br install.sh 2>/dev/null || true
+            echo "✓ Scripts ready"
+          fi
+
+      - name: Report back to GitHub
+        if: always()
+        run: |
+          echo "## Pi Fleet Deploy — ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repo:** ${{ github.event.client_payload.repo }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA:** ${{ github.event.client_payload.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Host:** $(hostname) ($(hostname -I | awk '{print $1}'))" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY

@@ -31,7 +31,7 @@ jobs:
     runs-on: [self-hosted, blackroad-fleet]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: AI Analysis
         id: ai
@@ -89,7 +89,7 @@ jobs:
           echo "labels=$LABELS" >> $GITHUB_OUTPUT
 
       - name: Apply Labels
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const aiLabels = '${{ steps.ai.outputs.labels }}'.split(',').filter(l => l);
@@ -141,7 +141,7 @@ jobs:
             }
 
       - name: Welcome Response
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const labels = '${{ steps.keywords.outputs.labels }}'.split(',').filter(l => l);
@@ -188,7 +188,7 @@ jobs:
 
     steps:
       - name: Find Stale Issues
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const staleDays = parseInt('${{ env.STALE_DAYS }}');
@@ -267,7 +267,7 @@ jobs:
     steps:
       - name: Check for Existing Issue
         id: check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             // Search for existing issue about this workflow
@@ -284,7 +284,7 @@ jobs:
             }
 
       - name: Create or Update Issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const workflowName = '${{ github.event.workflow_run.name }}';
@@ -340,7 +340,7 @@ jobs:
 
     steps:
       - name: Generate Statistics
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             // Get all issues

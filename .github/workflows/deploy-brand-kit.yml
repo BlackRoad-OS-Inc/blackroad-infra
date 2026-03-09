@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout brand-kit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: BlackRoad-OS-Inc/blackroad-brand-kit
           token: ${{ secrets.GITHUB_TOKEN }}

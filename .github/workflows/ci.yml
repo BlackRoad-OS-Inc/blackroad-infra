@@ -12,7 +12,7 @@ jobs:
     name: ShellCheck
     runs-on: [self-hosted, linux, arm64, blackroad]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install + run shellcheck
         run: |
           if ! command -v shellcheck &>/dev/null; then
@@ -26,7 +26,7 @@ jobs:
     name: Terraform Validate
     runs-on: [self-hosted, linux, arm64, blackroad]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: hashicorp/setup-terraform@v3
         with: {terraform_version: "1.7.0"}
       - name: Validate
@@ -41,7 +41,7 @@ jobs:
     name: YAML Lint
     runs-on: [self-hosted, linux, arm64, blackroad]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Lint YAML
         run: |
           pip install yamllint -q --break-system-packages 2>/dev/null || pip install yamllint -q 2>/dev/null || true

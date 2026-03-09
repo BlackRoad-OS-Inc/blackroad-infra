@@ -30,8 +30,8 @@ jobs:
     runs-on: [self-hosted, blackroad-fleet]
     if: ${{ inputs.target == 'all' || inputs.target == 'railway' || github.event_name == 'push' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -54,8 +54,8 @@ jobs:
     runs-on: [self-hosted, blackroad-fleet]
     if: ${{ inputs.target == 'all' || inputs.target == 'vercel' || github.event_name == 'push' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Install Vercel CLI
         run: npm install -g vercel
@@ -74,8 +74,8 @@ jobs:
     runs-on: [self-hosted, blackroad-fleet]
     if: ${{ inputs.target == 'all' || inputs.target == 'cloudflare' || github.event_name == 'push' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Install Wrangler
         run: npm install -g wrangler
@@ -100,9 +100,9 @@ jobs:
     runs-on: [self-hosted, blackroad-fleet]
     if: ${{ inputs.target == 'all' || inputs.target == 'pis' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.PI_SSH_KEY }}
       - name: Deploy to Pi fleet

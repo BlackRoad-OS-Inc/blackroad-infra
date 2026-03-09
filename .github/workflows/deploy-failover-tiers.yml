@@ -29,7 +29,7 @@ jobs:
     runs-on: [self-hosted, pi-fleet, primary]
     continue-on-error: true   # if Pi is down don't block fallbacks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Pull latest + reload nginx
         run: |
@@ -60,7 +60,7 @@ jobs:
     needs: deploy-pi-primary
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Sync nginx config to droplet
         run: |
@@ -78,7 +78,7 @@ jobs:
     name: "CF Worker — failover router"
     runs-on: [self-hosted, blackroad-fleet]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -91,7 +91,7 @@ jobs:
     name: "Tier 4 — CF Pages (always on)"
     runs-on: [self-hosted, blackroad-fleet]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -107,7 +107,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -120,7 +120,7 @@ jobs:
     runs-on: [self-hosted, blackroad-fleet]
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: npm install -g @railway/cli
       - run: railway up --service blackroad-fallback
         working-directory: failover/static-fallback

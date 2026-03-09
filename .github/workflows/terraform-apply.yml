@@ -15,7 +15,7 @@ jobs:
         working-directory: terraform/environments/production
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: "1.7"
       - run: terraform init

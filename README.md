@@ -1,58 +1,41 @@
+<div align="center">
+
+<img src="https://images.blackroad.io/pixel-art/road-logo.png" alt="BlackRoad OS" width="80" />
+
 # blackroad-infra
 
-> Infrastructure-as-code, CI/CD workflows, and deployment configs for BlackRoad OS.
+**Infrastructure-as-code, CI/CD workflows, deployment configurations, and environment orchestration.**
 
-[![CI](https://github.com/BlackRoad-OS-Inc/blackroad-infra/actions/workflows/ci.yml/badge.svg)](https://github.com/BlackRoad-OS-Inc/blackroad-infra/actions/workflows/ci.yml)
+[![BlackRoad OS](https://img.shields.io/badge/BlackRoad_OS-Pave_Tomorrow-FF2255?style=for-the-badge&labelColor=000000)](https://blackroad.io)
+[![License](https://img.shields.io/badge/License-Proprietary-FF6B2B?style=for-the-badge&labelColor=000000)](./LICENSE)
+[![Edge AI](https://img.shields.io/badge/Edge_AI-52_TOPS-00D4FF?style=for-the-badge&labelColor=000000)](https://github.com/BlackRoad-OS-Inc)
 
-## Overview
+</div>
 
-All IaC, container configs, CI/CD pipelines, and cloud provider deployments. One source of truth for how BlackRoad OS infrastructure is defined and deployed.
-
-## Structure
-
-```
-blackroad-infra/
-├── terraform/        # Terraform modules (DigitalOcean, Cloudflare, Railway)
-├── docker/           # Dockerfiles and compose files
-├── k8s/              # Kubernetes manifests
-├── cloudflare/       # Cloudflare Workers & Pages configs (wrangler.toml)
-├── railway/          # Railway project configs (railway.toml)
-├── ci/               # Reusable CI/CD workflow templates
-├── dashboard/        # Infrastructure dashboard
-└── scripts/          # Deployment automation scripts
-```
-
-## Platforms
-
-| Platform | Config Location | Purpose |
-|----------|----------------|---------|
-| Cloudflare | `cloudflare/` | 75+ Workers, Pages, Tunnel |
-| Railway | `railway/` | 14 projects, GPU services |
-| DigitalOcean | `terraform/` | Droplets, Spaces |
-| Docker | `docker/` | Container definitions |
-| Kubernetes | `k8s/` | Orchestration |
-
-## Quick Deploys
-
-```bash
-# Cloudflare Worker
-cd cloudflare/<worker> && wrangler deploy
-
-# Railway
-railway up
-
-# Terraform
-cd terraform && terraform plan && terraform apply
-```
-
-## Required Secrets
-
-See `.env.example` for all required environment variables.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md)
+<div align="center">
+<sub>Part of the <a href="https://blackroad.io">BlackRoad OS</a> ecosystem — sovereign edge AI infrastructure</sub>
+</div>
 
 ---
 
-© BlackRoad OS, Inc. — All rights reserved. Proprietary.
+## Overview
+
+Infrastructure-as-code, CI/CD workflows, deployment configurations, and environment orchestration.
+
+## License
+
+**Proprietary** — Copyright © 2024–2026 [BlackRoad OS, Inc.](https://blackroad.io) All rights reserved.
+
+Founder & CEO: **Alexa Louise Amundson** · Delaware C-Corp
+
+See [LICENSE](./LICENSE) for full terms.
+
+---
+
+<div align="center">
+
+**BlackRoad OS — Pave Tomorrow.**
+
+[blackroad.io](https://blackroad.io) · [GitHub](https://github.com/BlackRoad-OS-Inc) · [Brand](https://brand.blackroad.io)
+
+</div>
